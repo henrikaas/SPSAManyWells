@@ -1,32 +1,29 @@
-[build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["manywells"]
-
-[project]
-name = "manywells"
+[tool.poetry]
+name = "spsamanywells"
 version = "0.1.0"
-description = "ManyWells: simulation of multiphase flow in vertical oil and gas wells"
-readme = "README.md"
+description = "SPSA optimization of multiphase flow wells using ManyWells: simulation of multiphase flow in vertical oil and gas wells"
+authors = ["Bjarne Grimstad", "Erlend Lundby", "Henrik Fredriksen Aas"]
 license = "CC-BY-NC-4.0"
-requires-python = ">=3.10"
-dependencies = [
-    "numpy==1.24.3",
-    "pandas==1.5.3",
-    "matplotlib==3.7.2",
-    "seaborn==0.13.2",
-    "scikit-learn==1.3.0",
-    "casadi==3.6.4",
-]
-authors = [
-  {name = "Bjarne Grimstad"},
-  {name = "Erlend Lundby"},
-]
-maintainers = [
-  {name = "Bjarne Grimstad", email = "bjarne.grimstad@solutionseeker.no"},
+readme = "README.md"
+packages = [
+    { include = "manywells" },
 ]
 
-[project.urls]
-Repository = "https://github.com/solution-seeker-as/manywells.git"
+[tool.poetry.dependencies]
+python = ">=3.10"
+numpy = "1.24.3"
+pandas = "1.5.3"
+matplotlib = "3.7.2"
+seaborn = "0.13.2"
+scikit-learn = "1.3.0"
+casadi = "3.6.4"
+
+[tool.poetry.group.dev.dependencies]
+# add dev dependencies like pytest or black here
+
+[tool.poetry.urls]
+Repository = "https://github.com/henrikaas/SPSAManyWells.git"
+
+[build-system]
+requires = ["poetry-core>=1.5.0"]
+build-backend = "poetry.core.masonry.api"
