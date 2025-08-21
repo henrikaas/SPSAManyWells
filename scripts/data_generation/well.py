@@ -38,16 +38,17 @@ class Well:
     def copy(self):
         return deepcopy(self)
 
-    def sample_new_conditions(self):
+    def sample_new_conditions(self, sample_u = True, sample_w_lg = True):
 
         # New conditions are stored in a new well object
         new_well = self.copy()
 
         # New choke opening
-        new_well.bc.u = np.random.uniform(0.05, 1)
+        if sample_u:
+            new_well.bc.u = np.random.uniform(0.05, 1)
 
         # New gas lift setting
-        if self.has_gas_lift:
+        if self.has_gas_lift and sample_w_lg:
             new_well.bc.w_lg = np.random.uniform(0, 5)  # Max 5 kg/s of lift gas
 
         # Update boundary pressures
