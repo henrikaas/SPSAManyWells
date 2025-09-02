@@ -117,8 +117,9 @@ def gradient_length(i):
     return 0.1 / (i + 50) ** 0.301
 
 # ------- Main script -------
-filepath = "data/stresstest/optimized_wells_config.csv"
-dataset = pd.read_csv(filepath)
+filepath = "data/stresstest/"
+filename = "optimized_wells_config.csv"
+dataset = pd.read_csv(filepath + filename)
 wells = configure_wells(dataset)
 
 simulators = []
