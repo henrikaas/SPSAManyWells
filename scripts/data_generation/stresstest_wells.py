@@ -154,7 +154,7 @@ for i in range(ITERATIONS):
                 fails_per_well[id] += 1
 
         # Find a new decision variable as starting point for next iteration
-        # Finds the new point by random walk
+        # Finds a new decision vector by random walk
         direction = random.choice(PERT_DIRECTIONS)
         u = orig_u + g * direction[0]
         well.bc.u = np.clip(u, U_MIN, U_MAX)
