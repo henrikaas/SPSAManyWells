@@ -3,6 +3,7 @@ Dataclass for holding constraints related to the well system.
 """
 
 from dataclasses import dataclass
+import numpy as np
 
 @dataclass
 class WellSystemConstraints:
@@ -45,6 +46,24 @@ class WellSystemConstraints:
     # max_wells: int
 
     def __post_init__(self):
-        # Computations that might be needed post init
-        pass
+        # Placeholder for well-coupling constraints
+        self.coupling_constraints: dict[str, float] = {"water": self.wat_max}
+
+    def get_violations(self, y):
+        """
+        Compute the constraint violations based on the current state, `y`.
+
+        Args:
+            y (dict): Dictionary containing current state values.
+
+        Returns:
+            np.ndarray: Array of constraint violations. Positive values indicate violations.
+        """
+        violations = []
+
+        for constraint, limit in self.coupling_constraints.items():
+            violation = y[constraint] - limit
+            violations.append(violation)
+
+        return np.array(violations)
 
