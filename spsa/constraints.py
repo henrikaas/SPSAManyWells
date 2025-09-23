@@ -2,10 +2,10 @@
 Dataclass for holding constraints related to the well system.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import numpy as np
 
-@dataclass
+@dataclass(frozen=True)
 class WellSystemConstraints:
     """
     Dataclass representing operational constraints for a well system.
@@ -26,13 +26,13 @@ class WellSystemConstraints:
     """
 
     # Choke
-    u_max: float = 1.0
-    u_min: float = 0.0
+    u_min: float = field(default=0.0, init=False)
+    u_max: float = field(default=1.0, init=False)
 
     # Gas lift
+    gl_min: float = field(default=0.0, init=False)
     gl_max: float
-    gl_min: float = 0.0
-    comb_gl_max: float 
+    comb_gl_max: float
 
     # Water in separator
     wat_max: float
@@ -43,11 +43,37 @@ class WellSystemConstraints:
 
     # # Number of moves
     # max_moves: int
-    # max_wells: int
+    max_wells: int
+
+    # Coupling constraints that is enforced by penalty and lagrangian methods
+    penalty_constraints: dict[str, float] = field(init=False)
 
     def __post_init__(self):
-        # Placeholder for well-coupling constraints
-        self.coupling_constraints: dict[str, float] = {"water": self.wat_max}
+        # Placeholder for well-coupling penalty constraints
+        object.__setattr__(self, "penalty_constraints", {"water": self.wat_max})
+
+    def validate(self):
+        # Enforce constants exactly
+        if self.u_min != 0.0 or self.u_max != 1.0:
+            raise ValueError("u_min must be 0.0 and u_max must be 1.0.")
+        if self.gl_min != 0.0:
+            raise ValueError("gl_min must be 0.0.")
+
+        # Gas lift ranges
+        if self.gl_max <= self.gl_min:
+            raise ValueError(f"gl_max must be > gl_min, got {self.gl_max}.")
+        if self.comb_gl_max < self.gl_max:
+            raise ValueError(f"comb_gl_max={self.comb_gl_max} must be ≥ gl_max={self.gl_max}.")
+
+        # Water
+        if self.wat_max <= 0:
+            raise ValueError(f"wat_max must be > 0, got {self.wat_max}.")
+
+        # Wells
+        if self.max_wells <= 0:
+            raise ValueError(f"max_wells must be > 0, got {self.max_wells}.")
+        
+        return self
 
     def get_violations(self, y):
         """
@@ -61,9 +87,45 @@ class WellSystemConstraints:
         """
         violations = []
 
-        for constraint, limit in self.coupling_constraints.items():
+        for constraint, limit in self.penalty_constraints.items():
             violation = y[constraint] - limit
             violations.append(violation)
 
         return np.array(violations)
+
+    def project_combined_gl(self, gl_values: np.ndarray, stat_gl: float) -> np.ndarray:
+        """
+        Project gas lift values to satisfy individual and combined constraints.
+
+        Args:
+            gl_values (np.ndarray): Array of gas lift values for each well.
+
+        Returns:
+            np.ndarray: Projected gas lift values satisfying the constraints.
+        """
+        # Clip individual gas lift values to be within [gl_min, gl_max]
+        # Should be done before calling this function, but just in case
+        gl_values = np.clip(gl_values, self.gl_min, self.gl_max)
+
+        # Check if the combined gas lift exceeds the maximum allowed
+        allowed_gl = self.comb_gl_max - stat_gl # Need to account for stationary wells, as we should not change these values
+        total_gl = np.sum(gl_values)
+        if total_gl > allowed_gl:
+            # Scale down the gas lift values proportionally
+            scaling_factor = allowed_gl / total_gl
+            projected_gl = gl_values * scaling_factor
+        else:
+            projected_gl = gl_values
+
+        return projected_gl
+
+    def enforce_well_constraints(self, decision_vector):
+        """
+        Enforces lower and upper bounds on the decision vector for well constraints.
+        Args:
+            decision_vector (np.ndarray): Array containing decision variables [u, w_lg].
+        Returns:
+            np.ndarray: Decision vector with enforced constraints.
+        """
+        return np.clip(decision_vector, [self.u_min, self.gl_min], [self.u_max, self.gl_max])
 

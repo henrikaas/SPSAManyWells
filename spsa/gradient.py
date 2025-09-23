@@ -1,7 +1,7 @@
 import numpy as np
 from constraints import WellSystemConstraints
 
-class Gradient:
+class SPSAGradient:
 
     def __init__(self, constraints: WellSystemConstraints, 
                 use_penalty: bool = True,
@@ -34,7 +34,7 @@ class Gradient:
             self.rho: float = rho # Penalty parameter
 
         if self.use_lagrangian:
-            self.b: float = bk
+            self.bk: float = bk
             self.lambdas: dict[str, float] = {key: 0.0 for key in self.constraints.coupling_constraints}
 
         self.gradient: np.ndarray = None

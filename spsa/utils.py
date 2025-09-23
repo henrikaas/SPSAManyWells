@@ -1,15 +1,26 @@
 """
 Helper functions
 """
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from spsa.optimizer import SPSA, SPSAConfig  # only for type checkers; no runtime import
 
 import pandas as pd
 import numpy as np
+import os
 
 from manywells.simulator import SimError, WellProperties, BoundaryConditions
 from scripts.data_generation.well import Well
 import manywells.pvt as pvt
 from manywells.inflow import Vogel
 from manywells.choke import SimpsonChokeModel
+from spsa.constraints import WellSystemConstraints
+from scripts.data_generation.file_utils import save_well_config_and_data
+from datetime import datetime
+
+
 
 def load_well_configs(filepath):
     """
@@ -18,7 +29,7 @@ def load_well_configs(filepath):
     dataset = pd.read_csv(filepath)
     return dataset
 
-def configure_wells(filepath) -> dict[int, Well]:
+def configure_wells(filepath) -> list[Well]:
     """
     Loads a well configuration file and configures the wells.
 
@@ -26,7 +37,7 @@ def configure_wells(filepath) -> dict[int, Well]:
     """
     config_dataset = load_well_configs(filepath)
 
-    wells = {}
+    wells = []
     for index, w in config_dataset.iterrows():
         well_properties = WellProperties(
             L = w['wp.L'],
@@ -90,11 +101,11 @@ def configure_wells(filepath) -> dict[int, Well]:
                     has_gas_lift=w['has_gas_lift']
         )
 
-        wells[index] = well
+        wells.append(well)
 
     return wells
 
-def create_data_point(well, sim, x, decision_type=None):
+def create_data_point(well, sim, x, sim_type=None):
     """
     Creating new data point to add to well_data.
     Based on generate_well_data.simulate_well
@@ -191,8 +202,8 @@ def create_data_point(well, sim, x, decision_type=None):
         'FRBH': regime_bh,  # Flow regime at bottomhole
         'FRWH': regime_wh,  # Flow regime at wellhead
     }
-    if decision_type is not None:
-        dp['DCNT'] = decision_type # Type of desicion (exploring, optimizing)
+    if sim_type is not None:
+        dp['SIM'] = sim_type # Type of desicion (exploring, optimizing)
 
     # Add new data point to dataset
     new_dp = pd.DataFrame(dp, index=[0])  # Passing index since values are scalar
@@ -207,10 +218,180 @@ def create_sim_results_df():
     cols = ['CHK', 'PBH', 'PWH', 'PDC', 'TBH', 'TWH',
             'WGL', 'WGAS', 'WLIQ', 'WOIL', 'WWAT', 'WTOT',
             'QGL', 'QGAS', 'QLIQ', 'QOIL', 'QWAT', 'QTOT',
-            'FGAS', 'FOIL', 'FWAT', 'CHOKED', 'FRBH', 'FRWH', 'DCNT']
+            'FGAS', 'FOIL', 'FWAT', 'CHOKED', 'FRBH', 'FRWH', 'SIM']
     well_data = pd.DataFrame(columns=cols, dtype=np.float32)
     well_data['CHOKED'] = well_data['CHOKED'].astype(bool)
     well_data['FRBH'] = well_data['FRBH'].astype(str)
     well_data['FRWH'] = well_data['FRWH'].astype(str)
 
     return well_data
+
+def calculate_state(well_data: list[pd.DataFrame]):
+
+    # Oil production:
+    oil = sum([well['WOIL'].values[-1] for well in well_data])
+    print(f"Oil production: {oil} kg/s")
+
+    # Water:
+    water = sum([well['WWAT'].values[-1] for well in well_data])
+    print(f"Water production: {water} kg/s")
+
+    # Gas lift:
+    gas_lift = sum([well['WGL'].values[-1] for well in well_data])
+    print(f"Gas lift: {gas_lift} kg/s")
+
+    # Gas:
+    gas = sum([well['WGAS'].values[-1] for well in well_data])
+    print(f"Gas production (excl. lift gas): {gas} kg/s")
+
+    return {"oil": oil, "water": water, "gas_lift": gas_lift, "gas": gas}
+
+def save_data(spsa: SPSA, well_data: pd.DataFrame, main_path: str, k: int):
+    path = f"{main_path}/iteration_{k}"
+
+    for i, well in enumerate(spsa.wells):
+        save_well_config_and_data(config=well, data=well_data[i], dataset_version=path)
+
+    # Create settings file
+    with open(f"{path}/settings.txt", 'w') as f:
+        f.write(f"iteration: {k}\n")
+        # f.write(f"lambdas: {spsa.lambdas}\n\n")
+
+        f.write(f"Constraints:\n")
+        f.write(f"gl_max: {spsa.constraints.gl_max}\n")
+        f.write(f"comb_gl_max: {spsa.constraints.comb_gl_max}\n")
+        f.write(f"wat_max: {spsa.constraints.wat_max}\n\n")
+
+        f.write(f"SPSA hyperparametres:\n")
+        f.write(f"a: {spsa.hyperparams.a}\n")
+        f.write(f"b: {spsa.hyperparams.b}\n")
+        f.write(f"c: {spsa.hyperparams.c}\n")
+        f.write(f"A: {spsa.hyperparams.A}\n")
+        f.write(f"alpha: {spsa.hyperparams.alpha}\n")
+        f.write(f"beta: {spsa.hyperparams.beta}\n")
+        f.write(f"gamma: {spsa.hyperparams.gamma}\n")
+        f.write(f"sigma: {spsa.hyperparams.sigma}\n\n")
+
+        f.write(f"dataset_version: {main_path}\n")
+
+def save_fail_log(path: str, k: int, fails_per_well: dict[list], success: bool):
+    """
+    Saves a log file detailing the failures encountered during a process.
+
+    Args:
+        path (str): The directory path where the log file will be saved.
+        k (int): The number of iterations completed before finishing or crashing.
+        fails_per_well (dict[list]): A dictionary mapping well identifiers (keys) to lists of failure messages (values).
+        success (bool): Indicates whether the process finished successfully (True) or crashed (False).
+
+    The function creates the specified directory if it does not exist, and writes a formatted log file named
+    'failures.txt' containing the status, number of iterations, and failure details for each well.
+    """
+    os.makedirs(path, exist_ok=True)
+
+    with open(f"{path}/failures.txt", "w") as f:
+        f.write(f"------- Failure log -------\n")
+        status_msg = "Successful finish" if success else "Crashed"
+        f.write(f"{status_msg} after {k} iterations.\n")
+        f.write(f"---------------------------\n\n")
+
+        for key, fails in fails_per_well.items():
+            f.write(f"--- Well L={key:.1f} ---\n")
+            f.write(f"Total failures: {len(fails)}\n")
+            for line in fails:
+                f.write(line)
+            f.write(f"---------------------------\n\n")
+
+def append_fail_log(fail_log: list[str], well: Well, k: int):
+    fail_msg = f"Failure {len(fail_log) +1} at iteration {k} with u={well.bc.u}, gl={well.bc.w_lg}"
+    fail_log.append(fail_msg)
+    return fail_log
+
+def save_init_log(path: str, description: dict[str, any]):
+
+    os.makedirs(path, exist_ok=True)
+    with open(f"{path}/system_description.txt", "w") as f:
+        f.write(f"------- System description -------\n")
+        f.write(f"Time: {datetime.now().isoformat()}\n")
+        f.write(f"{description['description']}\n")
+        f.write(f"----------------------------------\n\n")
+
+        f.write(f"Attempted number of iterations: {description['n_sim']}\n")
+        f.write(f"Number of wells: {description['n_wells']}\n\n")
+
+        constraints: WellSystemConstraints = description['constraints']
+        f.write(f"Constraints:\n")
+        f.write(f"gl_max: {constraints.gl_max}\n")
+        f.write(f"comb_gl_max: {constraints.comb_gl_max}\n")
+        f.write(f"wat_max: {constraints.wat_max}\n\n")
+
+        hyperparams: SPSAConfig = description['hyperparams']
+        f.write(f"SPSA hyperparametres:\n")
+        f.write(f"a: {hyperparams.a}\n")
+        f.write(f"b: {hyperparams.b}\n")
+        f.write(f"c: {hyperparams.c}\n")
+        f.write(f"A: {hyperparams.A}\n")
+        f.write(f"alpha: {hyperparams.alpha}\n")
+        f.write(f"beta: {hyperparams.beta}\n")
+        f.write(f"gamma: {hyperparams.gamma}\n")
+        f.write(f"sigma: {hyperparams.sigma}\n\n")
+
+        f.write(f"config file: {description['config']}\n")
+
+def create_dirs(experiments: list[dict], n_runs: int):
+    """
+    Create directories for saving the results of each experiment.
+    """
+    work_dir = os.environ["USER_WORK"]
+
+    results_dir = os.path.join(work_dir, "results")
+    os.makedirs(results_dir, exist_ok=True) # Create results directory if it doesn't exist
+
+    for experiment in experiments:
+        save_dir = os.path.join(results_dir, f"{experiment['save']}")
+        os.makedirs(save_dir, exist_ok=False)
+
+        for run_idx in range(0, n_runs):
+            run_dir = os.path.join(save_dir, f"run{run_idx}")
+            os.makedirs(run_dir, exist_ok=True)
+    
+    return work_dir, results_dir
+
+def choked_flow(well: Well, sample_type:str):
+    """
+    If choke == 0, we handle it outside of the simulator
+    """
+    u = well.bc.u
+    w_gl = well.bc.w_lg
+    dp = {
+    'CHK': u,
+    'PBH': 0.0,
+    'PWH': 0.0,
+    'PDC': well.bc.p_s,
+    'TBH': well.bc.T_r,
+    'TWH': 0.0,
+    'WGL': w_gl,
+    'WGAS': 0.0,  # Excluding lift gas
+    'WLIQ': 0.0,
+    'WOIL': 0.0,
+    'WWAT': 0.0,
+    'WTOT': 0.0,  # Total mass flow, including lift gas
+    'QGL': 0.0,
+    'QGAS': 0.0,  # Excluding lift gas
+    'QLIQ': 0.0,
+    'QOIL': 0.0,
+    'QWAT': 0.0,
+    'QTOT': 0.0,  # Total volumetric flow, including lift gas
+    'FGAS': 0.0,  # Inflow gas mass fraction (WGAS / (WTOT - WGL))
+    'FOIL': 0.0,  # Inflow oil mass fraction (WOIL / (WTOT - WGL))
+    'FWAT': 0.0,  # Inflow water mass fraction (WWAT / (WTOT - WGL))
+    'CHOKED': True,
+    'FRBH': None,  # Flow regime at bottomhole
+    'FRWH': None,  # Flow regime at wellhead
+    }
+    if sample_type is not None:
+        dp['SIM'] = sample_type # Type of desicion (exploring, optimizing)
+
+    # Add new data point to dataset
+    new_dp = pd.DataFrame(dp, index=[0])  # Passing index since values are scalar
+    return new_dp, None

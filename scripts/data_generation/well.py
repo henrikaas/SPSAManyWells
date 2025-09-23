@@ -10,7 +10,7 @@ Methods to generate a random well
 """
 
 import typing as ty
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from copy import deepcopy
 
 import numpy as np
@@ -19,6 +19,8 @@ from manywells.simulator import WellProperties, BoundaryConditions, STD_GRAVITY,
 from manywells.inflow import Vogel
 from manywells.choke import BernoulliChokeModel, SimpsonChokeModel
 import manywells.pvt as pvt
+
+from collections import deque
 
 
 @dataclass
@@ -34,6 +36,8 @@ class Well:
     fractions: ty.Tuple[float, float, float]  # Tuple with (gas, oil, water) mass fraction (should sum to one)
 
     has_gas_lift: float  # Removed default value = False
+
+    x_guesses: deque = field(default_factory=lambda: deque(maxlen=10))  # FIFO queue of last guesses for this well
 
     def copy(self):
         return deepcopy(self)
