@@ -252,28 +252,6 @@ def save_data(spsa: SPSA, well_data: pd.DataFrame, main_path: str, k: int):
     for i, well in enumerate(spsa.wells):
         save_well_config_and_data(config=well, data=well_data[i], dataset_version=path)
 
-    # Create settings file
-    with open(f"{path}/settings.txt", 'w') as f:
-        f.write(f"iteration: {k}\n")
-        # f.write(f"lambdas: {spsa.lambdas}\n\n")
-
-        f.write(f"Constraints:\n")
-        f.write(f"gl_max: {spsa.constraints.gl_max}\n")
-        f.write(f"comb_gl_max: {spsa.constraints.comb_gl_max}\n")
-        f.write(f"wat_max: {spsa.constraints.wat_max}\n\n")
-
-        f.write(f"SPSA hyperparametres:\n")
-        f.write(f"a: {spsa.hyperparams.a}\n")
-        f.write(f"b: {spsa.hyperparams.b}\n")
-        f.write(f"c: {spsa.hyperparams.c}\n")
-        f.write(f"A: {spsa.hyperparams.A}\n")
-        f.write(f"alpha: {spsa.hyperparams.alpha}\n")
-        f.write(f"beta: {spsa.hyperparams.beta}\n")
-        f.write(f"gamma: {spsa.hyperparams.gamma}\n")
-        f.write(f"sigma: {spsa.hyperparams.sigma}\n\n")
-
-        f.write(f"dataset_version: {main_path}\n")
-
 def save_fail_log(path: str, k: int, fails_per_well: dict[list], success: bool):
     """
     Saves a log file detailing the failures encountered during a process.
@@ -296,14 +274,14 @@ def save_fail_log(path: str, k: int, fails_per_well: dict[list], success: bool):
         f.write(f"---------------------------\n\n")
 
         for key, fails in fails_per_well.items():
-            f.write(f"--- Well L={key:.1f} ---\n")
+            f.write(f"------ Well L={key:.1f} ------\n")
             f.write(f"Total failures: {len(fails)}\n")
             for line in fails:
                 f.write(line)
             f.write(f"---------------------------\n\n")
 
 def append_fail_log(fail_log: list[str], well: Well, k: int):
-    fail_msg = f"Failure {len(fail_log) +1} at iteration {k} with u={well.bc.u}, gl={well.bc.w_lg}"
+    fail_msg = f"Failure {len(fail_log) +1} at iteration {k} with u={well.bc.u}, gl={well.bc.w_lg}\n"
     fail_log.append(fail_msg)
     return fail_log
 
@@ -317,13 +295,15 @@ def save_init_log(path: str, description: dict[str, any]):
         f.write(f"----------------------------------\n\n")
 
         f.write(f"Attempted number of iterations: {description['n_sim']}\n")
-        f.write(f"Number of wells: {description['n_wells']}\n\n")
+        f.write(f"Number of wells: {description['n_wells']}\n")
+        f.write(f"Starting decision vector: {description['start']}\n\n")
 
         constraints: WellSystemConstraints = description['constraints']
         f.write(f"Constraints:\n")
         f.write(f"gl_max: {constraints.gl_max}\n")
         f.write(f"comb_gl_max: {constraints.comb_gl_max}\n")
-        f.write(f"wat_max: {constraints.wat_max}\n\n")
+        f.write(f"wat_max: {constraints.wat_max}\n")
+        f.write(f"max_wells: {constraints.max_wells}\n\n")
 
         hyperparams: SPSAConfig = description['hyperparams']
         f.write(f"SPSA hyperparametres:\n")
@@ -334,7 +314,8 @@ def save_init_log(path: str, description: dict[str, any]):
         f.write(f"alpha: {hyperparams.alpha}\n")
         f.write(f"beta: {hyperparams.beta}\n")
         f.write(f"gamma: {hyperparams.gamma}\n")
-        f.write(f"sigma: {hyperparams.sigma}\n\n")
+        f.write(f"sigma: {hyperparams.sigma}\n")
+        f.write(f"rho: {hyperparams.rho}\n\n")
 
         f.write(f"config file: {description['config']}\n")
 

@@ -26,11 +26,11 @@ from spsa.utils import save_data, choked_flow, save_fail_log, append_fail_log, s
 class SPSAConfig:
     a: float = 0.1          # learning-rate controller
     b: float = 0.5          # dual-rate controller
-    c: float = 0.15          # perturbation magnitude
-    A: int   = 50           # stabilizer
+    c: float = 0.15         # perturbation magnitude
+    A: int   = 5            # stabilizer
     alpha: float = 0.602    # learning-rate decay
     beta:  float = 0.602    # dual-rate decay
-    gamma: float = 0.051      # perturbation decay
+    gamma: float = 0.051    # perturbation decay
     sigma: float = 0.0      # noise level for oil evaluation
     rho:   float = 1.0      # penalty parameter
 
@@ -55,7 +55,11 @@ HYPERPARAM_PRESETS: dict[str, SPSAConfig] = {
     # "fast":    SPSAConfig(a=0.5, c=0.05, A=10,  alpha=0.4, beta=0.7, sigma=0.0, rho=0.0),
 }
 CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
-    "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=40.0, max_wells=5),
+    "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5),
+    "strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=10.0, max_wells=5),
+    "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
+    "a_bit_relaxed_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=25.0, max_wells=5),
+    "strict_comb_gl": WellSystemConstraints(gl_max=2.5, comb_gl_max=2.5, wat_max=20.0, max_wells=5),
     "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
     # TODO: Define more presets
     # "strict":  WellSystemConstraints(gl_max=100, comb_gl_max=200, wat_max=300, max_wells=5),
@@ -77,6 +81,7 @@ class SPSA:
 
         self.wells: list[Well] = wells
         self.n_wells = len(wells)
+        self.backup_wells = copy.deepcopy(wells) # Backup of the last successful well states
 
         # Hyperparameter configuration
         # Choose base config: explicit > preset > default
@@ -231,6 +236,7 @@ class SPSA:
             self.gradient.bk = self.hyperparams.b / (k**self.hyperparams.beta)
             ck = self.hyperparams.c / (k ** self.hyperparams.gamma)
 
+            staged_data = [[] for _ in range(self.n_wells)] # Placeholder for data in current iteration
             pos_well_data = [] # Reset placeholder for simulation results in positive perturbation
             neg_well_data = [] # Reset placeholder for simulation results in negative perturbation
             stat_well_data = [] # Reset placeholder for simulation results in stationary wells
@@ -266,8 +272,8 @@ class SPSA:
             # Project gas lift values to satisfy constraints
             perturbations = np.array(perturbations)
             stat_gl = sum(self.wells[idx].bc.w_lg for idx in unselected_well_idxs) # Gas lift used by stationary wells
-            perturbations[:, 0, 1] = self.constraints.project_combined_gl(perturbations[:, 0, 1], stat_gl=stat_gl)
-            perturbations[:, 1, 1] = self.constraints.project_combined_gl(perturbations[:, 1, 1], stat_gl=stat_gl)
+            perturbations[:, 0, 1] = self.constraints.project_combined_gl(perturbations[:, 0, 1], stat_gl=stat_gl) # Project combined gas lift for positive perturbation
+            perturbations[:, 1, 1] = self.constraints.project_combined_gl(perturbations[:, 1, 1], stat_gl=stat_gl) # Project combined gas lift for negative perturbation
 
             try:
                 # TODO: Refactor the perturbation into a separate function?
@@ -298,7 +304,7 @@ class SPSA:
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Pos. Perturbation')
 
                     pos_well_data.append(dp)
-                    well_data[well_idx] = pd.concat([well_data[well_idx], dp], ignore_index=True)
+                    staged_data[well_idx].append(dp)
                 
                 # Negative perturbation
                 tasks = []
@@ -327,7 +333,7 @@ class SPSA:
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Neg. Perturbation')
 
                     neg_well_data.append(dp)
-                    well_data[well_idx] = pd.concat([well_data[well_idx], dp], ignore_index=True)
+                    staged_data[well_idx].append(dp)
 
                 # ============= 3 ==============
                 # Simulate the wells that are not perturbed
@@ -359,7 +365,7 @@ class SPSA:
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Unselected Well')
 
                     stat_well_data.append(dp)
-                    well_data[well_idx] = pd.concat([well_data[well_idx], dp], ignore_index=True)
+                    staged_data[well_idx].append(dp)
 
                 # ============= 4 ==============
                 # Calculate the state and gradient of the system in both perturbations
@@ -403,13 +409,10 @@ class SPSA:
                         raise SimError(f"Simulation failed for well {well_idx}")
                     else:
                         well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
-                        dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Neg. Perturbation')
+                        dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Optimizing')
 
-                    well_data[well_idx] = pd.concat([well_data[well_idx], dp], ignore_index=True)
-                
-                # Calculate the state of the system
-                y_opt = calculate_state(well_data=well_data)
-            
+                    staged_data[well_idx].append(dp)
+
             except SimError as e:
                 n_fails += 1
                 self.wells = copy.deepcopy(self.backup_wells) # Reset wells to the last successful state
@@ -429,6 +432,12 @@ class SPSA:
             print(f"Simulation #{k} successful.")
             print("--------------------------------------------")
 
+            # Save data stream to main storage
+            for i in range(self.n_wells):
+                if staged_data[i]:  
+                    well_data[i] = pd.concat([well_data[i], *staged_data[i]], ignore_index=True)
+            y_opt = calculate_state(well_data=well_data)
+
             if k % 10 == 0 and save_path is not None:
                 print(f"Saving state after {k} successful iterations")
                 save_data(self, well_data=well_data, main_path=save_path, k=k)
@@ -439,8 +448,9 @@ class SPSA:
 
         if save_path is not None:
             print(f"Saving final state after {k-1} successful iterations")
-            # Save data stream
-            save_data(self, well_data=well_data, main_path=save_path, k=k)
+            if (k - 1) % 10 != 0:
+                # Save data stream
+                save_data(self, well_data=well_data, main_path=save_path, k=k-1)
             # Save failure log
             save_fail_log(path=save_path, k=k-1, fails_per_well=fails_per_well, success=True)
 
@@ -455,15 +465,193 @@ if __name__ == "__main__":
     n_sim = 50
 
     experiments = [
-        # Example run
-        {"config": "testruns",
-         "save": "test1",
-         "description": "First test run. All standard settings.",
+        # Mixed production, different rho and water constraint levels
+        # rho = 0.5, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho0.5_water20",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 0.5 | water <= 20\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
          "n_wells": 5,
          "constraints": CONSTRAINT_PRESETS["default"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 0.5},
+        },
+        # rho = 1.0, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho1_water20",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 1.0 | water <= 20\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 1.0},
+        },
+        # rho = 2.0, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho2_water20",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 2.0 | water <= 20\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+        },
+        # rho = 4.0, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho4_water20",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 4.0 | water <= 20\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 4.0},
+        },
+        # rho = 8.0, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho8_water20",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 8.0 | water <= 20\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0},
+        },
+
+        # rho = 1.0, water <= 10
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho1_water10",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 1.0 | water <= 10\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 1.0},
+        },
+        # rho = 2.0, water <= 10
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho2_water10",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 2.0 | water <= 10\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+        },
+        # rho = 4.0, water <= 10
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho4_water10",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 4.0 | water <= 10\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 4.0},
+        },
+
+        # rho = 0.5, water <= 15
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho0.5_water15",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 0.5 | water <= 15\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 0.5},
+        },
+        # rho = 1.0, water <= 15
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho1_water15",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 1.0 | water <= 15\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 1.0},
+        },
+        # rho = 2.0, water <= 15
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho2_water15",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 2.0 | water <= 15\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+        },
+        # rho = 4.0, water <= 15
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho4_water15",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 4.0 | water <= 15\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 4.0},
+        },
+
+        # rho = 2.0, water <= 25
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho2_water25",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 2.0 | water <= 25\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_relaxed_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+        },
+        # rho = 4.0, water <= 25
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho/mixedprod_rho4_water25",
+         "description": "Experiments with rho for different water constraint levels\n"
+                        "rho = 4.0 | water <= 25\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_relaxed_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 4.0},
+        },
+
+        # One experiment to ensure gl constraints are enforced properly (projection)
+        {"config": "mixedprod_choke50",
+         "save": "experiments gl constraints/mixedprod_strict_comb_gl",
+         "description": "Experiments with gas lift constraints\n"
+                        "comb. gl <= 5.0\n"
+                        "Default mixed production well system",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["strict_comb_gl"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {},
         },
     ]
+
 
     # ----------- Main script -----------
     work_dir, results_dir = create_dirs(experiments, n_runs)
@@ -473,10 +661,12 @@ if __name__ == "__main__":
                                     os.path.join(work_dir, "config files", f"{experiment['config']}.csv"))
         parent_constraints = experiment['constraints']
         parent_hyperparams = experiment['hyperparams']
+        overrides = experiment.get("hyperparam_overrides", {})
 
         parent_spsaopt = SPSA(wells=parent_wells,
                               constraints=parent_constraints,
-                              hyperparam_config=parent_hyperparams)
+                              hyperparam_config=parent_hyperparams,
+                              **overrides)
         
         # Create initial log
         experiment.update({
