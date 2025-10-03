@@ -156,7 +156,9 @@ class SPSA:
         # # Skip simulation if choke is nearly closed
         # if simulator.bc.u <= 0.05:
         #     return None
-        
+        # if simulator.bc.u == 0.0:
+        #     x = handle_choked_flow(well)
+        #     return x
         try:
             x = simulator.simulate()
             return x
@@ -191,6 +193,9 @@ class SPSA:
             tuple[int, np.ndarray | None]: A tuple containing the well index and the simulation result.
                                            If the simulation fails, the result is None.
         """
+        if well.bc.u == 0.0:
+            x = [0.0] * ((sim.n_cells + 1) * sim.dim_x) # All zeros if choke is fully closed
+            return well_idx, x
         try:
             x = self._single_simulation(simulator=sim, well=well)
         except SimError:
@@ -465,66 +470,66 @@ if __name__ == "__main__":
     experiments = [
         # Experiment on size of perturbation vector
         # Well system size: 10, perturbation vector: 10
-        {"config": "10randomwells",
-         "save": "max_wells/10wells_perturb10",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 10\n"
-                        "Random well system with 10 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 10,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=10),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
-        # Well system size: 10, perturbation vector: 8
-        {"config": "10randomwells",
-         "save": "max_wells/10wells_perturb8",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 8\n"
-                        "Random well system with 10 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 10,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=8),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
-        # Well system size: 10, perturbation vector: 6
-        {"config": "10randomwells",
-         "save": "max_wells/10wells_perturb6",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 6\n"
-                        "Random well system with 10 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 10,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=6),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
-        # Well system size: 10, perturbation vector: 4
-        {"config": "10randomwells",
-         "save": "max_wells/10wells_perturb4",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 4\n"
-                        "Random well system with 10 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 10,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=4),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
-        # Well system size: 10, perturbation vector: 2
-        {"config": "10randomwells",
-         "save": "max_wells/10wells_perturb2",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 2\n"
-                        "Random well system with 10 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 10,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=2),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
-        # Well system size: 20, perturbation vector: 20
+        # {"config": "10randomwells",
+        #  "save": "max_wells/10wells_perturb10",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 10\n"
+        #                 "Random well system with 10 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 10,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=10),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
+        # # Well system size: 10, perturbation vector: 8
+        # {"config": "10randomwells",
+        #  "save": "max_wells/10wells_perturb8",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 8\n"
+        #                 "Random well system with 10 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 10,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=8),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
+        # # Well system size: 10, perturbation vector: 6
+        # {"config": "10randomwells",
+        #  "save": "max_wells/10wells_perturb6",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 6\n"
+        #                 "Random well system with 10 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 10,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=6),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
+        # # Well system size: 10, perturbation vector: 4
+        # {"config": "10randomwells",
+        #  "save": "max_wells/10wells_perturb4",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 4\n"
+        #                 "Random well system with 10 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 10,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=4),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
+        # # Well system size: 10, perturbation vector: 2
+        # {"config": "10randomwells",
+        #  "save": "max_wells/10wells_perturb2",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 2\n"
+        #                 "Random well system with 10 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 10,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=2),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
+        # # Well system size: 20, perturbation vector: 20
         {"config": "20randomwells",
          "save": "max_wells/20wells_perturb20",
          "description": "Experiment on size of perturbation vector\n"
@@ -534,56 +539,56 @@ if __name__ == "__main__":
          "n_wells": 20,
          "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=20),
          "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
+         "hyperparam_overrides": {"c": 0.0001},
         },
-        # Well system size: 20, perturbation vector: 15
-        {"config": "20randomwells",
-         "save": "max_wells/20wells_perturb15",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 15\n"
-                        "Random wells system with 20 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=15),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
-        # Well system size: 20, perturbation vector: 10
-        {"config": "20randomwells",
-         "save": "max_wells/20wells_perturb10",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 10\n"
-                        "Random wells system with 20 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=10),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
-        # Well system size: 20, perturbation vector: 5
-        {"config": "20randomwells",
-         "save": "max_wells/20wells_perturb5",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 5\n"
-                        "Random wells system with 20 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=5),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
-        # Well system size: 20, perturbation vector: 3
-        {"config": "20randomwells",
-         "save": "max_wells/20wells_perturb3",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 3\n"
-                        "Random wells system with 20 wells\n",
-         "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=3),
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {},
-        },
+        # # Well system size: 20, perturbation vector: 15
+        # {"config": "20randomwells",
+        #  "save": "max_wells/20wells_perturb15",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 15\n"
+        #                 "Random wells system with 20 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 20,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=15),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
+        # # Well system size: 20, perturbation vector: 10
+        # {"config": "20randomwells",
+        #  "save": "max_wells/20wells_perturb10",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 10\n"
+        #                 "Random wells system with 20 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 20,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=10),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
+        # # Well system size: 20, perturbation vector: 5
+        # {"config": "20randomwells",
+        #  "save": "max_wells/20wells_perturb5",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 5\n"
+        #                 "Random wells system with 20 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 20,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=5),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
+        # # Well system size: 20, perturbation vector: 3
+        # {"config": "20randomwells",
+        #  "save": "max_wells/20wells_perturb3",
+        #  "description": "Experiment on size of perturbation vector\n"
+        #                 "max_wells = 3\n"
+        #                 "Random wells system with 20 wells\n",
+        #  "start": "Choke: 0.5 | Gas lift: 0.0",
+        #  "n_wells": 20,
+        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=3),
+        #  "hyperparams": HYPERPARAM_PRESETS["default"],
+        #  "hyperparam_overrides": {},
+        # },
     ]
 
     # ----------- Main script -----------

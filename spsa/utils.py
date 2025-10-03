@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from spsa.optimizer import SPSA, SPSAConfig  # only for type checkers; no runtime import
+    from manywells.simulator import SSDFSimulator
 
 import pandas as pd
 import numpy as np
@@ -105,7 +106,7 @@ def configure_wells(filepath) -> list[Well]:
 
     return wells
 
-def create_data_point(well, sim, x, sim_type=None):
+def create_data_point(well: Well, sim: SSDFSimulator, x, sim_type=None):
     """
     Creating new data point to add to well_data.
     Based on generate_well_data.simulate_well
@@ -163,17 +164,23 @@ def create_data_point(well, sim, x, sim_type=None):
     regime_wh = str(df_x['flow-regime'].iloc[-1])
     regime_bh = str(df_x['flow-regime'].iloc[0])
 
+    if isinstance(x, (list, np.ndarray, pd.Series)) and np.all(np.asarray(x) == 0.0):
+        choked = True
+        regime_wh = None
+        regime_bh = None
+
     # Validate data before adding
     valid_rates = w_l >= 0 and w_g >= 0
     valid_fracs = (0 <= f_g <= 1) and (0 <= f_o <= 1) and (0 <= f_w <= 1)
     if not (valid_rates and valid_fracs):
         raise SimError('Flow rates/mass fractions not valid')  # Count failure - discard simulation
         
-    # Discard simulation if total mass flow rate is less than 0.1 kg/s
-    if w_l + w_g < 0.1:
-        # Simulation did not fail, but solution is invalid (too low flow rate)
-        # n_failed_sim += 1  # Count failure - discard simulation
-        raise SimError('Total mass flow rate too low')
+    # Not applicable when running SPSA optimization
+    # # Discard simulation if total mass flow rate is less than 0.1 kg/s
+    # if w_l + w_g < 0.1:
+    #     # Simulation did not fail, but solution is invalid (too low flow rate)
+    #     # n_failed_sim += 1  # Count failure - discard simulation
+    #     raise SimError('Total mass flow rate too low')
 
     # Structure data point in dict
     dp = {
@@ -184,7 +191,7 @@ def create_data_point(well, sim, x, sim_type=None):
         'TBH': well.bc.T_r,
         'TWH': twh,
         'WGL': w_lg,
-        'WGAS': w_g - w_lg,  # Excluding lift gas
+        'WGAS': max(0, w_g - w_lg),  # Excluding lift gas
         'WLIQ': w_l,
         'WOIL': w_o,
         'WWAT': w_w,
@@ -342,16 +349,14 @@ def choked_flow(well: Well, sample_type:str):
     """
     If choke == 0, we handle it outside of the simulator
     """
-    u = well.bc.u
-    w_gl = well.bc.w_lg
     dp = {
-    'CHK': u,
-    'PBH': 0.0,
-    'PWH': 0.0,
+    'CHK': well.bc.u,
+    'PBH': None,
+    'PWH': None,
     'PDC': well.bc.p_s,
     'TBH': well.bc.T_r,
-    'TWH': 0.0,
-    'WGL': w_gl,
+    'TWH': None,
+    'WGL': well.bc.w_lg,
     'WGAS': 0.0,  # Excluding lift gas
     'WLIQ': 0.0,
     'WOIL': 0.0,
