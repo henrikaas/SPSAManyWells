@@ -57,6 +57,7 @@ HYPERPARAM_PRESETS: dict[str, SPSAConfig] = {
 CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
     "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5),
     "strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=10.0, max_wells=5),
+    "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
     "max_wells_2": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=2),
     "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
     # TODO: Define more presets
@@ -468,127 +469,163 @@ if __name__ == "__main__":
     n_sim = 50
 
     experiments = [
-        # Experiment on size of perturbation vector
-        # Well system size: 10, perturbation vector: 10
-        # {"config": "10randomwells",
-        #  "save": "max_wells/10wells_perturb10",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 10\n"
-        #                 "Random well system with 10 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 10,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=10),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
-        # # Well system size: 10, perturbation vector: 8
-        # {"config": "10randomwells",
-        #  "save": "max_wells/10wells_perturb8",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 8\n"
-        #                 "Random well system with 10 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 10,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=8),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
-        # # Well system size: 10, perturbation vector: 6
-        # {"config": "10randomwells",
-        #  "save": "max_wells/10wells_perturb6",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 6\n"
-        #                 "Random well system with 10 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 10,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=6),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
-        # # Well system size: 10, perturbation vector: 4
-        # {"config": "10randomwells",
-        #  "save": "max_wells/10wells_perturb4",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 4\n"
-        #                 "Random well system with 10 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 10,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=4),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
-        # # Well system size: 10, perturbation vector: 2
-        # {"config": "10randomwells",
-        #  "save": "max_wells/10wells_perturb2",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 2\n"
-        #                 "Random well system with 10 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 10,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=85.0, max_wells=2),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
-        # # Well system size: 20, perturbation vector: 20
-        {"config": "20randomwells",
-         "save": "max_wells/20wells_perturb20",
-         "description": "Experiment on size of perturbation vector\n"
-                        "max_wells = 20\n"
-                        "Random wells system with 20 wells\n",
+        # Experiment on different rho values on different strictness on water constraint
+        # Relaxed, for reference
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/relaxed",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 1.0 | water <= 100\n"
+                        "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=20),
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["relaxed"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"c": 0.0001},
+         "hyperparam_overrides": {},
+        },        
+        # rho = 0.5, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho0.5'_water20",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 0.5 | water <= 20\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 0.5},
         },
-        # # Well system size: 20, perturbation vector: 15
-        # {"config": "20randomwells",
-        #  "save": "max_wells/20wells_perturb15",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 15\n"
-        #                 "Random wells system with 20 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 20,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=15),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
-        # # Well system size: 20, perturbation vector: 10
-        # {"config": "20randomwells",
-        #  "save": "max_wells/20wells_perturb10",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 10\n"
-        #                 "Random wells system with 20 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 20,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=10),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
-        # # Well system size: 20, perturbation vector: 5
-        # {"config": "20randomwells",
-        #  "save": "max_wells/20wells_perturb5",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 5\n"
-        #                 "Random wells system with 20 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 20,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=5),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
-        # # Well system size: 20, perturbation vector: 3
-        # {"config": "20randomwells",
-        #  "save": "max_wells/20wells_perturb3",
-        #  "description": "Experiment on size of perturbation vector\n"
-        #                 "max_wells = 3\n"
-        #                 "Random wells system with 20 wells\n",
-        #  "start": "Choke: 0.5 | Gas lift: 0.0",
-        #  "n_wells": 20,
-        #  "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=250.0, max_wells=3),
-        #  "hyperparams": HYPERPARAM_PRESETS["default"],
-        #  "hyperparam_overrides": {},
-        # },
+        # rho = 1.0, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho1_water20",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 1.0 | water <= 20\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 1.0},
+        },
+        # rho = 2.0, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho2_water20",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 2.0 | water <= 20\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+        },
+        # rho = 4.0, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho4_water20",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 4.0 | water <= 20\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 4.0},
+        },
+        # rho = 8.0, water <= 20
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho8_water20",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 8.0 | water <= 20\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0},
+        },
+        # rho = 0.5, water <= 15
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho0.5_water15",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 0.5 | water <= 15\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 0.5},
+        },
+        # rho = 1.0, water <= 15
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho1_water15",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 1.0 | water <= 15\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 1.0},
+        },
+        # rho = 2.0, water <= 15
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho2_water15",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 2.0 | water <= 15\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+        },
+        # rho = 4.0, water <= 15
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho4_water15",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 4.0 | water <= 15\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 4.0},
+        },
+        # rho = 0.5, water <= 10
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho0.5_water10",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 0.5 | water <= 10\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 0.5},
+        },
+        # rho = 1.0, water <= 10
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho1_water10",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 1.0 | water <= 10\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 1.0},
+        },
+        # rho = 2.0, water <= 10
+        {"config": "mixedprod_choke50",
+         "save": "experiments rho v2/rho2_water10",
+         "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "rho = 2.0 | water <= 10\n"
+                        "Default mixed production well system\n",
+         "start": "Choke: 0.5 | Gas lift: 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+        },
     ]
 
     # ----------- Main script -----------
