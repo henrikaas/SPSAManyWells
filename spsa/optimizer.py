@@ -60,6 +60,7 @@ CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
     "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
     "max_wells_2": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=2),
     "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
+    "relaxed_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=1000, max_wells=5),
     # TODO: Define more presets
     # "strict":  WellSystemConstraints(gl_max=100, comb_gl_max=200, wat_max=300, max_wells=5),
 }
@@ -102,6 +103,8 @@ class SPSA:
             constraints = replace(constraints, max_wells=self.n_wells)
         self.constraints: WellSystemConstraints = constraints.validate()
 
+        self.scaling_factor = min(10, self.constraints.gl_max) # To avoid too large perturbations when gl_max is relaxed
+
         # Initialize gradient object
         use_penalty = True if self.hyperparams.rho > 0 else False
         use_lagrangian = False # Change this if we want to use lagrangian method, not implemented yet
@@ -111,6 +114,7 @@ class SPSA:
                                      use_lagrangian=use_lagrangian,
                                      bk = self.hyperparams.b # Needed when using lagrangian
                                      )
+        
         
     def _draw_directions(self) -> tuple[int]:
         """
@@ -142,9 +146,9 @@ class SPSA:
         gl_direction = gl_direction if has_gl else 0.0
 
         pos_perturbation = [u + ck * u_direction,
-                            gl + ck * gl_direction * self.constraints.gl_max]
+                            gl + ck * gl_direction * self.scaling_factor]
         neg_perturbation = [u - ck * u_direction,
-                            gl - ck * gl_direction * self.constraints.gl_max]
+                            gl - ck * gl_direction * self.scaling_factor]
         
         pos_perturbation = self.constraints.enforce_well_constraints(pos_perturbation)
         neg_perturbation = self.constraints.enforce_well_constraints(neg_perturbation)
@@ -379,7 +383,7 @@ class SPSA:
 
                 # Compute the gradient
                 gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions))
-                gradient[:,1] *= self.constraints.gl_max # Scale the gradient for gas lift wells
+                gradient[:,1] *=  self.scaling_factor# Scale the gradient for gas lift wells
 
                 # Update decision variables
                 opt_theta = cur_state - gradient * ak
@@ -478,7 +482,7 @@ if __name__ == "__main__":
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
          "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["relaxed"],
+         "constraints": CONSTRAINT_PRESETS["relaxed_water"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
          "hyperparam_overrides": {},
         },        
