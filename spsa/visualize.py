@@ -151,6 +151,27 @@ def extract_production_history(data: pd.DataFrame, n_sims: int, init_production:
 
     return oil, gasl, water
 
+def extract_decision_vector(data: pd.DataFrame, only_optimizing: bool = False):
+    """
+    Extracts the decision vector for each iteration, using the data provided.
+    Important: Needs to be a /iteration_*.csv file, not config file.
+    """
+    if only_optimizing: 
+        data = data[data['SIM'].isin(['Unselected Well', 'Optimizing'])]
+
+    well_data = data.groupby('ID')
+    n_wells = len(well_data)
+
+    u_vals = []
+    gl_vals = []
+
+    for well_idx in range(n_wells):
+        well = well_data.get_group(well_idx)
+        u_vals.append(well["CHK"].values)
+        gl_vals.append(well["WGL"].values)
+
+    return u_vals, gl_vals
+
 # -------------- Main plotting functions -----------------
 
 def plot_spsa_experiment(experiment_name: str,
@@ -304,6 +325,7 @@ def plot_decision_vector(experiment_name: str, save: bool = False, iteration: in
 def plot_decision_vector_series(experiment_name: str, save_each: bool = False, start: int | None = None, stop: int | None = None):
     """
     Finds iterations in experiment_name, sorts ascending, and calls plot_decision_vector for each.
+    Makes it possible to track the decision vector over time.
     Optional start/stop (inclusive bounds) to restrict the range.
     """
     experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
@@ -317,20 +339,86 @@ def plot_decision_vector_series(experiment_name: str, save_each: bool = False, s
     for it in iters:
         plot_decision_vector(experiment_name, save=save_each, iteration=it)
 
+def print_production_sequence(experiment_name: str):
+    """
+    Prints the production sequence from one SPSA experiment.
+    """
+    experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
+    info = extract_settings(experiment_dir)
+    config_file = info["config_file"]
+    info.update(INIT_INFO[config_file])
+
+    runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+    n_runs = len(runs)
+
+    n_wells = info["n_wells"]
+    max_wells = info["constraints"].get("max_wells", n_wells)
+
+    for run_idx, run in enumerate(runs):
+        print(f"Processing Run {run_idx}/{n_runs-1}...")
+        # Find all CSVs that match the pattern iteration_X/iteration_X.csv
+        candidates = [
+            p for p in run.glob("iteration_*/iteration_*.csv")
+            if p.stem == p.parent.name  # ensures iteration_50/iteration_50.csv
+        ]
+
+        if candidates:
+            # Extract iteration numbers from folder names
+            def get_iter(p: Path) -> int:
+                return int(p.parent.name.split("_")[1])
+            
+            latest = max(candidates, key=get_iter) # Get the file with the highest iteration number
+            df = pd.read_csv(latest)
+        else:
+            print(f"No valid data found for Run {run_idx}. Skipping.")
+            continue
+        
+        # Number of wells with check
+        if n_wells != len(df.groupby('ID')):
+            raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
+        
+        n_sims = int(len(df) / (2 * min(max_wells, n_wells) + n_wells))
+        
+        oil, gasl, water = extract_production_history(data=df, 
+                                                      n_sims=n_sims, 
+                                                      init_production=(info["oil"], info["gaslift"], info["water"]),
+                                                      only_optimizing=False)
+        u, gl = extract_decision_vector(data=df, only_optimizing=False)
+        
+        print(f"Run {run_idx+1} Production Sequence:")
+        for i in range(n_sims):
+            print(f"====== Iteration {i+1} ======")
+            print("--- Positive perturbation ---")
+            print(f"Oil: {oil[3*i+1]:.3f}, Gas Lift: {gasl[3*i+1]:.3f}, Water: {water[3*i+1]:.3f}")
+            for well_idx in range(n_wells):
+                print(f"Well {well_idx+1}: Choke: {u[well_idx][3*i]:.3f}, Gas Lift: {gl[well_idx][3*i]:.3f}")
+
+            print("--- Negative perturbation ---")
+            print(f"Oil: {oil[3*i+2]:.3f}, Gas Lift: {gasl[3*i+2]:.3f}, Water: {water[3*i+2]:.3f}")
+            for well_idx in range(n_wells):
+                print(f"Well {well_idx+1}: Choke: {u[well_idx][3*i+1]:.3f}, Gas Lift: {gl[well_idx][3*i+1]:.3f}")
+
+            print("--- Resulting state ---")
+            print(f"Oil: {oil[3*i+3]:.3f}, Gas Lift: {gasl[3*i+3]:.3f}, Water: {water[3*i+3]:.3f}")
+            for well_idx in range(n_wells):
+                print(f"Well {well_idx+1}: Choke: {u[well_idx][3*i+2]:.3f}, Gas Lift: {gl[well_idx][3*i+2]:.3f}")
+            print(f"========================\n")
+
 
 if __name__ == "__main__":
-    # plot_spsa_experiment(experiment_name="experiments maxwells/10wells_perturb2", only_optimizing_iterations=True)
+    # plot_spsa_experiment(experiment_name="experiments rho/mixedprod_rho1_water15", only_optimizing_iterations=True)
     # plot_decision_vector(experiment_name="experiments rho/mixedprod_rho2_water20")
     # plot_decision_vector_series(experiment_name="experiments gl constraints/mixedprod_strict_comb_gl")
+    print_production_sequence(experiment_name="experiments rho/mixedprod_rho1_water15")
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
     # main_exp = "experiments rho" # Change this as needed
     # main_exp = "experiments gl constraints"
-    main_exp = "experiments maxwells"
+    # main_exp = "experiments maxwells"
 
-    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    # experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
-    for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True)
-        plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
+    # for exp in experiments:
+    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True)
+    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
