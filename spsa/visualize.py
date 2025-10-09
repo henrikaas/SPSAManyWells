@@ -406,19 +406,19 @@ def print_production_sequence(experiment_name: str):
 
 
 if __name__ == "__main__":
-    # plot_spsa_experiment(experiment_name="experiments rho/mixedprod_rho1_water15", only_optimizing_iterations=True)
+    plot_spsa_experiment(experiment_name="experiments rho v2/rho8_water20", only_optimizing_iterations=True)
     # plot_decision_vector(experiment_name="experiments rho/mixedprod_rho2_water20")
     # plot_decision_vector_series(experiment_name="experiments gl constraints/mixedprod_strict_comb_gl")
-    print_production_sequence(experiment_name="experiments rho/mixedprod_rho1_water15")
+    # print_production_sequence(experiment_name="experiments rho v2/relaxed")
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
-    # main_exp = "experiments rho" # Change this as needed
+    main_exp = "experiments rho v2" # Change this as needed
     # main_exp = "experiments gl constraints"
     # main_exp = "experiments maxwells"
 
-    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    # experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
-    # for exp in experiments:
-    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True)
-    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
+    for exp in experiments:
+        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True)
+        plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")

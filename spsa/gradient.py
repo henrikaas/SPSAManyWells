@@ -35,7 +35,7 @@ class SPSAGradient:
 
         if self.use_lagrangian:
             self.bk: float = bk
-            self.lambdas: dict[str, float] = {key: 0.0 for key in self.constraints.coupling_constraints}
+            self.lambdas: dict[str, float] = {key: 0.0 for key in self.constraints.penalty_constraints.keys()} # Initialize Lagrange multipliers
 
         self.gradient: np.ndarray = None
 
@@ -87,10 +87,23 @@ class SPSAGradient:
         """
         if not self.use_lagrangian:
             return 0.0 # No Lagrangian applied
+        lagrangian = sum(self.lambdas[key] * max(0, violations[i]) for i, key in enumerate(self.constraints.penalty_constraints.keys()))
+        return lagrangian
+
+    def update_lambdas(self, y_pos, y_neg):
+        """
+        Update Lagrange multipliers based on current violations.
+        """
+        if not self.use_lagrangian:
+            return
         
-    def update_lambdas(self):
-        pass
+        pos_violations = self.constraints.get_violations(y_pos)
+        neg_violations = self.constraints.get_violations(y_neg)
+
+        violations = np.maximum(np.array(pos_violations), np.array(neg_violations))
         
+        for i, key in enumerate(self.lambdas.keys()):
+            self.lambdas[key] += self.bk * max(0, violations[i])        
 
         
         

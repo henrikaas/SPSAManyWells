@@ -25,14 +25,14 @@ from spsa.utils import save_data, choked_flow, save_fail_log, append_fail_log, s
 @dataclass(frozen=True)
 class SPSAConfig:
     a: float = 0.1          # learning-rate controller
-    b: float = 0.5          # dual-rate controller
+    b: float = 0.0          # dual-rate controller NB: Needs to be 0 to disable Lagrangian
     c: float = 0.15         # perturbation magnitude
     A: int   = 5            # stabilizer
     alpha: float = 0.602    # learning-rate decay
     beta:  float = 0.602    # dual-rate decay
     gamma: float = 0.051    # perturbation decay
     sigma: float = 0.0      # noise level for oil evaluation
-    rho:   float = 1.0      # penalty parameter
+    rho:   float = 1.0      # penalty parameter for penalty method. NB: Needs to be 0 to disable penalty method
 
     def validate(self) -> "SPSAConfig":
         if not (0 <= self.alpha <= 1):
@@ -103,16 +103,20 @@ class SPSA:
             constraints = replace(constraints, max_wells=self.n_wells)
         self.constraints: WellSystemConstraints = constraints.validate()
 
-        self.scaling_factor = min(10, self.constraints.gl_max) # To avoid too large perturbations when gl_max is relaxed
+        self.scaling_factor = min(10, self.constraints.gl_max) # Max value to avoid too large perturbations when gl_max constraint is relaxed
 
         # Initialize gradient object
         use_penalty = True if self.hyperparams.rho > 0 else False
-        use_lagrangian = False # Change this if we want to use lagrangian method, not implemented yet
+        use_lagrangian = True if self.hyperparams.b > 0 else False
+        print(f"Initializing SPSA with the following SPSA gradient settings:")
+        print(f"  Use Penalty: {use_penalty}")
+        print(f"  Use Lagrangian: {use_lagrangian}")
+
         self.gradient = SPSAGradient(constraints=self.constraints,
                                      use_penalty=use_penalty,
                                      rho=self.hyperparams.rho,
                                      use_lagrangian=use_lagrangian,
-                                     bk = self.hyperparams.b # Needed when using lagrangian
+                                     bk=self.hyperparams.b  # Needed when using lagrangian
                                      )
         
         
@@ -251,7 +255,7 @@ class SPSA:
 
             # Sample new well conditions
             for idx, well in enumerate(self.wells):
-                well = well.sample_new_conditions(sample_u=False, sample_w_lg=False)
+                # well = well.sample_new_conditions(sample_u=False, sample_w_lg=False)
                 self.wells[idx] = well
                 # Update simulator with new well conditions
                 simulators[idx].wp = well.wp
@@ -431,10 +435,8 @@ class SPSA:
             # ============= 6 ==============
             # If success, save data and update backup
             # ==============================
-            # TODO: Lagrangian multipliers
-            # # Update the Lagrangian multipliers
-            # self.lambdas['water'] = max(0, self.lambdas['water'] + bk * state['q_water'])
-            # self.lambdas['gl'] = max(0, self.lambdas['gl'] + bk * state['q_gl'])
+            # Update the Lagrangian multipliers
+            self.gradient.update_lambdas(y_pos=y_pos, y_neg=y_neg)
 
             print("--------------------------------------------")
             print(f"Simulation #{k} successful.")
@@ -476,8 +478,9 @@ if __name__ == "__main__":
         # Experiment on different rho values on different strictness on water constraint
         # Relaxed, for reference
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/relaxed",
+         "save": "experiments rho v3/relaxed",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 1.0 | water <= 100\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -488,7 +491,7 @@ if __name__ == "__main__":
         },        
         # rho = 0.5, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho0.5'_water20",
+         "save": "experiments rho v3/rho0.5_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
                         "rho = 0.5 | water <= 20\n"
                         "Default mixed production well system\n",
@@ -496,12 +499,13 @@ if __name__ == "__main__":
          "n_wells": 5,
          "constraints": CONSTRAINT_PRESETS["default"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 0.5},
+         "hyperparam_overrides": {"rho": 0.5,},
         },
         # rho = 1.0, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho1_water20",
+         "save": "experiments rho v3/rho1_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 1.0 | water <= 20\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -512,8 +516,9 @@ if __name__ == "__main__":
         },
         # rho = 2.0, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho2_water20",
+         "save": "experiments rho v3/rho2_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 2.0 | water <= 20\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -524,8 +529,9 @@ if __name__ == "__main__":
         },
         # rho = 4.0, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho4_water20",
+         "save": "experiments rho v3/rho4_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 4.0 | water <= 20\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -536,8 +542,9 @@ if __name__ == "__main__":
         },
         # rho = 8.0, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho8_water20",
+         "save": "experiments rho v3/rho8_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 8.0 | water <= 20\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -548,8 +555,9 @@ if __name__ == "__main__":
         },
         # rho = 0.5, water <= 15
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho0.5_water15",
+         "save": "experiments rho v3/rho0.5_water15",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 0.5 | water <= 15\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -560,8 +568,9 @@ if __name__ == "__main__":
         },
         # rho = 1.0, water <= 15
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho1_water15",
+         "save": "experiments rho v3/rho1_water15",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 1.0 | water <= 15\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -572,8 +581,9 @@ if __name__ == "__main__":
         },
         # rho = 2.0, water <= 15
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho2_water15",
+         "save": "experiments rho v3/rho2_water15",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 2.0 | water <= 15\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -584,8 +594,9 @@ if __name__ == "__main__":
         },
         # rho = 4.0, water <= 15
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho4_water15",
+         "save": "experiments rho v3/rho4_water15",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 4.0 | water <= 15\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -596,8 +607,9 @@ if __name__ == "__main__":
         },
         # rho = 0.5, water <= 10
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho0.5_water10",
+         "save": "experiments rho v3/rho0.5_water10",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 0.5 | water <= 10\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -608,8 +620,9 @@ if __name__ == "__main__":
         },
         # rho = 1.0, water <= 10
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho1_water10",
+         "save": "experiments rho v3/rho1_water10",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 1.0 | water <= 10\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -620,8 +633,9 @@ if __name__ == "__main__":
         },
         # rho = 2.0, water <= 10
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v2/rho2_water10",
+         "save": "experiments rho v3/rho2_water10",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "No new sampling of conditions!\n"
                         "rho = 2.0 | water <= 10\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
