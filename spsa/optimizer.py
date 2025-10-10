@@ -387,10 +387,12 @@ class SPSA:
 
                 # Compute the gradient
                 gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions))
-                gradient[:,1] *=  self.scaling_factor# Scale the gradient for gas lift wells
+                step_size = gradient * ak
+                np.clip(step_size, -0.2, 0.2, out=step_size) # Clip step size to avoid too large steps
+                gradient[:,1] *=  self.scaling_factor # Scale the gradient for gas lift wells
 
                 # Update decision variables
-                opt_theta = cur_state - gradient * ak
+                opt_theta = cur_state - step_size
                 opt_theta = self.constraints.enforce_well_constraints(opt_theta) # Project decision vector back to legal space
                 opt_theta[:,1] = self.constraints.project_combined_gl(opt_theta[:,1], stat_gl=stat_gl) # Project gas lift values to satisfy combined constraint
 
@@ -478,8 +480,9 @@ if __name__ == "__main__":
         # Experiment on different rho values on different strictness on water constraint
         # Relaxed, for reference
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/relaxed",
+         "save": "experiments rho max stepsize/relaxed",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 1.0 | water <= 100\n"
                         "Default mixed production well system\n",
@@ -491,8 +494,9 @@ if __name__ == "__main__":
         },        
         # rho = 0.5, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho0.5_water20",
+         "save": "experiments rho max stepsize/rho0.5_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "rho = 0.5 | water <= 20\n"
                         "Default mixed production well system\n",
          "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -503,8 +507,9 @@ if __name__ == "__main__":
         },
         # rho = 1.0, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho1_water20",
+         "save": "experiments rho max stepsize/rho1_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 1.0 | water <= 20\n"
                         "Default mixed production well system\n",
@@ -516,8 +521,9 @@ if __name__ == "__main__":
         },
         # rho = 2.0, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho2_water20",
+         "save": "experiments rho max stepsize/rho2_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 2.0 | water <= 20\n"
                         "Default mixed production well system\n",
@@ -529,8 +535,9 @@ if __name__ == "__main__":
         },
         # rho = 4.0, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho4_water20",
+         "save": "experiments rho max stepsize/rho4_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 4.0 | water <= 20\n"
                         "Default mixed production well system\n",
@@ -542,8 +549,9 @@ if __name__ == "__main__":
         },
         # rho = 8.0, water <= 20
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho8_water20",
+         "save": "experiments rho max stepsize/rho8_water20",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 8.0 | water <= 20\n"
                         "Default mixed production well system\n",
@@ -555,8 +563,9 @@ if __name__ == "__main__":
         },
         # rho = 0.5, water <= 15
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho0.5_water15",
+         "save": "experiments rho max stepsize/rho0.5_water15",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 0.5 | water <= 15\n"
                         "Default mixed production well system\n",
@@ -568,8 +577,9 @@ if __name__ == "__main__":
         },
         # rho = 1.0, water <= 15
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho1_water15",
+         "save": "experiments rho max stepsize/rho1_water15",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 1.0 | water <= 15\n"
                         "Default mixed production well system\n",
@@ -581,8 +591,9 @@ if __name__ == "__main__":
         },
         # rho = 2.0, water <= 15
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho2_water15",
+         "save": "experiments rho max stepsize/rho2_water15",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 2.0 | water <= 15\n"
                         "Default mixed production well system\n",
@@ -594,8 +605,9 @@ if __name__ == "__main__":
         },
         # rho = 4.0, water <= 15
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho4_water15",
+         "save": "experiments rho max stepsize/rho4_water15",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 4.0 | water <= 15\n"
                         "Default mixed production well system\n",
@@ -607,8 +619,9 @@ if __name__ == "__main__":
         },
         # rho = 0.5, water <= 10
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho0.5_water10",
+         "save": "experiments rho max stepsize/rho0.5_water10",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 0.5 | water <= 10\n"
                         "Default mixed production well system\n",
@@ -620,8 +633,9 @@ if __name__ == "__main__":
         },
         # rho = 1.0, water <= 10
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho1_water10",
+         "save": "experiments rho max stepsize/rho1_water10",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 1.0 | water <= 10\n"
                         "Default mixed production well system\n",
@@ -633,8 +647,9 @@ if __name__ == "__main__":
         },
         # rho = 2.0, water <= 10
         {"config": "mixedprod_choke50",
-         "save": "experiments rho v3/rho2_water10",
+         "save": "experiments rho max stepsize/rho2_water10",
          "description": "Experiment on different rho values on different strictness on water constraint\n"
+                        "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
                         "rho = 2.0 | water <= 10\n"
                         "Default mixed production well system\n",
