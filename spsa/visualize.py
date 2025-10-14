@@ -192,7 +192,7 @@ def plot_spsa_experiment(experiment_name: str,
     max_wells = info["constraints"].get("max_wells", n_wells)
 
     # Create figure with subplots
-    fig, axs = plt.subplots(3, 1, figsize=(12, 8), sharex=True, constrained_layout=True)
+    fig, axs = plt.subplots(3, 1, figsize=(13.33, 7.5), sharex=True, constrained_layout=True)
 
     for run_idx, run in enumerate(runs):
         print(f"Processing Run {run_idx}/{n_runs-1}...")
@@ -406,19 +406,22 @@ def print_production_sequence(experiment_name: str):
 
 
 if __name__ == "__main__":
-    plot_spsa_experiment(experiment_name="experiments rho v2/rho8_water20", only_optimizing_iterations=True)
+    # plot_spsa_experiment(experiment_name="experiments rho v3/relaxed", only_optimizing_iterations=False)
     # plot_decision_vector(experiment_name="experiments rho/mixedprod_rho2_water20")
-    # plot_decision_vector_series(experiment_name="experiments gl constraints/mixedprod_strict_comb_gl")
-    # print_production_sequence(experiment_name="experiments rho v2/relaxed")
+    plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
+    # print_production_sequence(experiment_name="experiments fixed gradient gain sequence/rho1_water10")
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
-    main_exp = "experiments rho v2" # Change this as needed
+    # main_exp = "experiments rho v3" # Change this as needed
     # main_exp = "experiments gl constraints"
     # main_exp = "experiments maxwells"
+    # main_exp = "experiments rho on augmented-lagrangian"
+    main_exp = "experiments rho max stepsize"
+    # main_exp = "experiments fixed gradient gain sequence"
 
-    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    # experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
-    for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True)
-        plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
+    # for exp in experiments:
+    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=True)
+        # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")

@@ -389,7 +389,7 @@ class SPSA:
                 gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions))
                 step_size = gradient * ak
                 np.clip(step_size, -0.2, 0.2, out=step_size) # Clip step size to avoid too large steps
-                gradient[:,1] *=  self.scaling_factor # Scale the gradient for gas lift wells
+                step_size[:,1] *=  self.scaling_factor # Scale the gradient for gas lift wells
 
                 # Update decision variables
                 opt_theta = cur_state - step_size
