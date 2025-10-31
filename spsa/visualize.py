@@ -8,9 +8,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import matplotlib.patches as mpatches
 import seaborn as sns
+from matplotlib.patches import Rectangle
+from matplotlib.lines import Line2D
+from matplotlib import colors
+from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter1d
 
 DATA_DIR = os.environ["RESULTS_DIR"]
 PLOT_DIR = os.environ["PLOT_DIR"]
@@ -20,12 +24,14 @@ INIT_INFO: dict = {
         "oil": 62.636,
         "water": 19.594,
         "gaslift": 0.0,
-        "opt_prod": 68
+        "opt_prod": 68,
+        "starting_vector": {"337.29": [0.5, 0], "416.00": [0.5, 0], "371.33": [0.5, 0], "381.84": [0.5, 0], "338.04": [0.5, 0]},
     },
     "10randomwells": {
          "oil": 169.7,
          "water": 68,
          "gaslift": 0.0,
+         "starting_vector": [[0.5, 0] for _ in range(10)],
         #  "opt_prod": 200 # TODO: dont know yet
     },
     "20randomwells": {
@@ -33,6 +39,31 @@ INIT_INFO: dict = {
         "water": 208.5,
         "gaslift": 0.0,
         # "opt_prod": 120 # TODO: dont know yet
+    },
+    "mixedprod_optchoke20_1": {
+        "oil": 62.636,
+        "water": 19.594,
+        "gaslift": 0.0,
+        "opt_prod": 68,
+    },
+    "mixedprod_optchoke20_2": {
+        "oil": 62.636,
+        "water": 19.594,
+        "gaslift": 0.0,
+        "opt_prod": 68,
+    },
+    "mixedprod_optchoke15": {
+        "oil": 62.636,
+        "water": 19.594,
+        "gaslift": 0.0,
+        "opt_prod": 68,
+        # TODO: "starting_vector": {"337.29": [0.15, 0], "416.00": [0.15, 0], "371.33": [0.15, 0], "381.84": [0.15, 0], "338.04": [0.15, 0]},
+    },
+    "mixedprod_optchoke10": {
+        "oil": 62.636,
+        "water": 19.594,
+        "gaslift": 0.0,
+        "opt_prod": 68,
     },
 }
 
@@ -291,8 +322,9 @@ def plot_decision_vector(experiment_name: str, save: bool = False, iteration: in
 
     # Assign a unique color to each well using wp.L
     well_ids = sorted(well_ids)  # Optional: consistent order
-    colormap = cm.get_cmap('tab20', len(well_ids))
-    color_mapping = {well_id: colormap(i % 10) for i, well_id in enumerate(well_ids)}
+    base_cmap = plt.get_cmap('tab20')
+    colormap = base_cmap(np.linspace(0, 1, len(well_ids)))
+    color_mapping = {well_id: colormap[i] for i, well_id in enumerate(well_ids)}
 
     for df in dfs:
         for _, row in df.iterrows():
@@ -404,24 +436,352 @@ def print_production_sequence(experiment_name: str):
                 print(f"Well {well_idx+1}: Choke: {u[well_idx][3*i+2]:.3f}, Gas Lift: {gl[well_idx][3*i+2]:.3f}")
             print(f"========================\n")
 
+def plot_decision_vector_history(experiment_name: str,
+                                only_optimizing_iterations: bool = True,
+                                wells_to_plot: list[int] | None = None,
+                                iteration: int | None = None,
+                                runs: list[int] | None = None,
+                                type: str = 'scatter',
+                                save: bool = False):
+    """
+    Plots the decision vector history as a line plot over all iterations for one experiment.
+    Choke (bc.u) on x-axis vs Gas Lift (bc.w_lg) on y-axis.
+    Each well is plotted with a consistent color.
+    If wells_to_plot is provided, only those wells are plotted (by index).
+
+    Args:
+        experiment_name: Name of the experiment folder.
+        only_optimizing_iterations: If True, only include iterations labeled as 'Optimizing or 'Unselected Well'.
+        wells_to_plot: List of well indices to plot. If None, plot all wells.
+        iteration: Specific iteration to plot. If None, use the last iteration.
+        runs: Which runs to process. If None, process all runs.
+        type: Type of plot ('scatter' or 'line').
+        save: If True, save the plot to PLOT_DIR.
+    """
+    experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
+    info = extract_settings(experiment_dir) # Extract settings from experiment description
+    config_file = info["config_file"]
+    info.update(INIT_INFO[config_file])
+    
+    if runs is None:
+        run_dirs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+    else:
+        run_dirs = [
+            r
+            for i in runs
+            for r in experiment_dir.glob(f"run{i}")
+            if r.is_dir()
+        ]
+
+    n_runs = len(run_dirs)
+    n_wells = len(wells_to_plot) if wells_to_plot is not None else info["n_wells"]
+
+    # Decide which iteration to show
+    if iteration is None:
+        iteration = info["n_sims"]
+
+    fig = plt.figure(figsize=(7.5, 7.5), constrained_layout=True)
+
+    colors_assigned = False
+    well_ids = set()
+    well_cmaps = ["Reds", "Blues", "Greens", "Oranges", "Purples", "Greys", "YlOrRd", "YlOrBr", "YlGn", "PuRd"]
+    for run_idx, run in enumerate(run_dirs):
+        print(f"Processing Run {run_idx}/{n_runs-1} (iteration {iteration})...")
+        print(f"Run path: {run}")
+        path = Path(f"{run}/iteration_{iteration}/iteration_{iteration}.csv")
+        if not path.exists():
+            print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
+            continue
+
+        df = pd.read_csv(path)
+
+        if not colors_assigned:
+            well_ids.update(df['TBH'].unique())
+            # Assign a unique color to each well using TBH
+            well_ids = sorted(well_ids)  # Consistent order
+
+            # Change id of wells_to_plot from index to TBH
+            if wells_to_plot is not None:
+                wells_to_plot = [well_ids[i] for i in wells_to_plot]
+            else:
+                wells_to_plot = list(well_ids)
+
+            color_mapping = {well_id: well_cmaps[i % len(well_cmaps)] for i, well_id in enumerate(wells_to_plot)}
+            colors_assigned = True
+
+        if only_optimizing_iterations: 
+            df = df[df['SIM'].isin(['Unselected Well', 'Optimizing'])]
+            
+        well_data = df.groupby('TBH')
+        
+        for well_idx in wells_to_plot if wells_to_plot is not None else range(n_wells):
+            well = well_data.get_group(well_idx)
+            cmap = plt.colormaps[color_mapping[well["TBH"].iloc[0]]]
+            starting_vector = info["starting_vector"][f"{well_idx:.2f}"]
+            u = [starting_vector[0]] + well["CHK"].tolist()
+            gl = [starting_vector[1]] + well["WGL"].tolist()
+
+            n_points = len(u)
+            for i in range(n_points):
+                color = cmap(0.2 + 0.85 * i / (n_points - 1))  # 0.2→1 avoids very light tones
+                if type == 'scatter':
+                    plt.scatter(u[i], gl[i], color=color, s=20, label=f"Well {well_idx}" if run_idx == 0 and i == (n_points - 1) // 2 else "")
+                elif type == 'line':
+                    plt.plot(u[i:i+2], gl[i:i+2],
+                        color=color,
+                        linewidth=3.5,
+                        label=f"Well {well_idx}" if run_idx == 0 and i == (n_points - 1) // 2 else "")
+
+
+    u_min, u_max = 0.0, 1.0
+    gl_min, gl_max = 0.0, info["constraints"].get("gl_max", None)
+    if gl_max is None:
+        raise ValueError("gl_max constraint not found in experiment settings.")
+
+    plt.xlim(u_min-0.05, u_max+0.05)
+    plt.ylim(gl_min-0.05, gl_max+0.05)
+
+    ax = plt.gca()
+    ax.add_patch(
+        Rectangle(
+            (u_min, gl_min),
+            u_max - u_min,
+            gl_max - gl_min,
+            facecolor="none",       # change to e.g. 'tab:green' with alpha if you want fill
+            edgecolor="black",      # outline color
+            linewidth=2.5,          # thicker outline
+            linestyle="--",         # dashed outline; change to '-' for solid
+            zorder=5,                # put outline above lines; lower if you want it behind
+            alpha=0.3,                # opacity of the outline
+            label="Boundaries of the Feasible Region"  # label for legend
+        )
+    )
+
+    plt.xlabel('Choke')
+    plt.ylabel('Gas lift')
+    # plt.title('History of the Decision Vector')
+    plt.legend()
+
+    # fig.suptitle(experiment_name)
+    if save:
+        plt.savefig(f"{PLOT_DIR}/{experiment_name}_prod.png", dpi=300, bbox_inches="tight")
+
+    plt.show()
+
+def plot_step_size(experiment_name: str, n_runs: int | None = 10, iteration: int | None = 50, save: bool = False):
+    """
+    Plots the step size of the SPSA algorithm over iterations.
+    Enhanced version:
+      - Smooths percentile curves
+      - Removes vertical lines between percentiles
+      - Adds black y-axis
+      - Adds one colored run using YlOrRd colormap
+    """
+    experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
+    info = extract_settings(experiment_dir)
+    config_file = info["config_file"]
+    info.update(INIT_INFO[config_file])
+
+    runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+    n_runs = min(n_runs, len(runs)) if n_runs is not None else len(runs)
+    runs = runs[:n_runs]
+
+    if iteration is None:
+        iteration = info["n_sims"]
+
+    step_sizes_for_all_runs = []
+
+    # --- Gather data from runs ---
+    for run_idx, run in enumerate(runs):
+        print(f"Processing Run {run_idx}/{n_runs-1} (iteration {iteration})...")
+        print(run)
+        path = Path(f"{run}/iteration_{iteration}/iteration_{iteration}.csv")
+        if not path.exists():
+            print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
+            continue
+
+        df = pd.read_csv(path)
+        df = df[df['SIM'] == 'Optimizing']
+        wells = df.groupby('ID')
+        n_wells = len(wells)
+
+        step_sizes = []
+        for well_idx in range(n_wells):
+            well = wells.get_group(well_idx)
+            starting_vector = info["starting_vector"][f"{well['TBH'].iloc[0]:.2f}"]
+            choke_vals = np.array([starting_vector[0]] + well["CHK"].tolist())
+            step_sizes.append(np.abs(np.diff(choke_vals)))
+
+        step_sizes = np.array(step_sizes).max(axis=0)
+        step_sizes_for_all_runs.append(step_sizes)
+
+    step_sizes_for_all_runs = np.array(step_sizes_for_all_runs)
+    mean_steps = np.mean(step_sizes_for_all_runs, axis=0)
+    percentiles_25 = np.percentile(step_sizes_for_all_runs, 25, axis=0)
+    percentiles_75 = np.percentile(step_sizes_for_all_runs, 75, axis=0)
+
+    # --- Smooth the percentile boundaries for better visual appeal ---
+    smooth_25 = gaussian_filter1d(percentiles_25, sigma=1.0)
+    smooth_75 = gaussian_filter1d(percentiles_75, sigma=1.0)
+    smooth_mean = gaussian_filter1d(mean_steps, sigma=1.0)
+
+    # --- Start plotting ---
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    iterations = np.arange(1, len(mean_steps)+1)
+
+    # Smooth shaded area (no vertical line segments)
+    ax.fill_between(iterations, smooth_25, smooth_75, color='grey', alpha=0.4, label='25–75 Percentile Range')
+
+    # Average step size (smoothed)
+    ax.plot(iterations, smooth_mean, color='grey', linewidth=2.5, label='Average Step Size')
+
+    # --- Plot one example run with YlOrRd gradient ---
+    example_run = step_sizes_for_all_runs[9]  # or choose another index
+    cmap = plt.colormaps['YlOrRd']
+    n_points = len(example_run)
+
+    for i in range(n_points - 1):
+        color = cmap(0.2 + 0.85 * i / (n_points - 1))
+        ax.plot(iterations[i:i+2], example_run[i:i+2], color=color, linewidth=2, label=f"Example Run Step Size" if i == n_points//2 else "")
+
+    ax.axhline(0, color='black', linewidth=2)
+    ax.axvline(0, color='black', linewidth=2)
+    ax.relim()        # Recalculate limits based on all artists
+    ax.autoscale()
+    ax.set_xlim(0.95, len(iterations))
+    ymax = max(np.max(smooth_75), np.max(example_run)) * 1.1
+    ax.set_ylim(-0.0005, ymax)
+
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Step Size")
+    # ax.set_title(f"Step Sizes for experiments {experiment_name}")
+
+    plt.legend()
+    plt.tight_layout()
+
+    if save:
+        plt.savefig(f"{PLOT_DIR}/{experiment_name}_stepsize.png", dpi=300, bbox_inches="tight")
+
+    plt.show()
+
+def plot_contour_function_landscape(
+    well: pd.DataFrame,
+    sigma=0.0,
+    normalize: str = "None",
+    maxmax: float | None = None,
+    minmin: float | None = None):
+    """
+    Visualizes the function landscape (WGL vs CHK vs WOIL) using contourf.
+    Supports local or global normalization and optional Gaussian smoothing.
+    """
+    if normalize == "global" and (maxmax is None or minmin is None):
+        raise ValueError("For global normalization, maxmax and minmin must be provided.")
+
+    # 1. Sort by CHK and WGL
+    df_sorted = well.sort_values(by=["WGL", "CHK"])
+
+    # 2. Get unique x and y coordinates
+    x_vals = np.sort(df_sorted["CHK"].unique())
+    y_vals = np.sort(df_sorted["WGL"].unique())
+
+    # 3. Pivot to form 2D grid
+    grid = df_sorted.pivot_table(index="WGL", columns="CHK", values="WOIL")
+    grid = grid.interpolate(method="linear", axis=0).interpolate(method="linear", axis=1)
+    data = grid.values
+
+    print("Grid shape:", data.shape)
+
+    # --- Step 2: Normalize ---
+    if normalize == "local":
+        data = (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data))
+        vmin, vmax = None, None
+    elif normalize == "global":
+        data = (data - minmin) / (maxmax - minmin)
+        vmin, vmax = 0, 1
+    else:
+        vmin, vmax = None, None
+
+    # --- Step 3: Smooth ---
+    data = gaussian_filter(data, sigma=sigma)
+
+    # --- Step 4: Contour plot ---
+    plt.figure(figsize=(6, 6))
+    low_cut = np.nanpercentile(data, 2)
+
+    contour = plt.contourf(
+        x_vals,
+        y_vals,
+        data,
+        levels=50,                # number of contour levels
+        cmap="viridis",
+        vmin=vmin, # or low_cut
+        vmax=vmax,
+    )
+
+    # Add grey grid lines (optional, coordinate-aware)
+    # for x in x_vals:
+    #     plt.axvline(x, color="grey", linewidth=0.5, alpha=0.4)
+    # for y in y_vals:
+    #     plt.axhline(y, color="grey", linewidth=0.5, alpha=0.4)
+
+    plt.colorbar(contour, label="Normalized Value")
+    plt.title("Smoothed Contour Map (Viridis)")
+    plt.xlabel("CHK")
+    plt.ylabel("WGL")
+    plt.tight_layout()
+    plt.show()
+
+def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | None = None, sigma: float = 0.0, normalize: str = "None"):
+    """
+    Plots function landscapes for multiple wells in an experiment.
+    """
+    experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
+    runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+    n_runs = len(runs)
+
+    for run_idx, run in enumerate(runs):
+        print(f"Processing Run {run_idx}/{n_runs-1}...")
+        path = Path(f"{run}/iteration_0/iteration_0.csv")
+        if not path.exists():
+            print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
+            continue
+
+        df = pd.read_csv(path)
+        maxmax = df['WOIL'].max()
+        minmin = df['WOIL'].min()
+        wells_grouped = df.groupby('ID')
+
+        if wells is None:
+            wells = list(wells_grouped.groups.keys())
+
+        for well_idx in wells:
+            well = wells_grouped.get_group(well_idx)
+            print(f"Plotting landscape for Well {well_idx} in Run {run_idx}...")
+            plot_contour_function_landscape(well, sigma=sigma, normalize=normalize, maxmax=maxmax, minmin=minmin)
 
 if __name__ == "__main__":
-    # plot_spsa_experiment(experiment_name="experiments rho v3/relaxed", only_optimizing_iterations=False)
-    # plot_decision_vector(experiment_name="experiments rho/mixedprod_rho2_water20")
-    plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
+    # plot_spsa_experiment(experiment_name="experiments rho v3/rho2_water10", only_optimizing_iterations=True)
+    # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
+    # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
     # print_production_sequence(experiment_name="experiments fixed gradient gain sequence/rho1_water10")
+    # plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=[7], type="line", save=True)
+    # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
+    plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=None, sigma=1.0, normalize="local")
+
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
     # main_exp = "experiments rho v3" # Change this as needed
     # main_exp = "experiments gl constraints"
     # main_exp = "experiments maxwells"
     # main_exp = "experiments rho on augmented-lagrangian"
-    main_exp = "experiments rho max stepsize"
+    # main_exp = "experiments rho max stepsize"
     # main_exp = "experiments fixed gradient gain sequence"
+    # main_exp = "experiments optchoke"
 
     # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
     # experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
     # for exp in experiments:
-    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=True)
-        # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
+    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
