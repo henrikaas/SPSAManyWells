@@ -253,10 +253,10 @@ def calculate_state(well_data: list[pd.DataFrame]):
 
     return {"oil": oil, "water": water, "gas_lift": gas_lift, "gas": gas}
 
-def save_data(spsa: SPSA, well_data: pd.DataFrame, main_path: str, k: int):
+def save_data(wells: list[Well], well_data: pd.DataFrame, main_path: str, k: int):
     path = f"{main_path}/iteration_{k}"
 
-    for i, well in enumerate(spsa.wells):
+    for i, well in enumerate(wells):
         save_well_config_and_data(config=well, data=well_data[i], dataset_version=path)
 
 def save_fail_log(path: str, k: int, fails_per_well: dict[list], success: bool):
