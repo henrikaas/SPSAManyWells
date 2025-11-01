@@ -73,6 +73,7 @@ class SPSA:
     def __init__(self, 
                  wells: list[Well], 
                  constraints: WellSystemConstraints | None = None,
+                 scaling_factor: float | None = None,
                  *,
                  hyperparam_config: SPSAConfig | None = None,
                  hyperparam_preset: str | None = None,
@@ -103,7 +104,11 @@ class SPSA:
             constraints = replace(constraints, max_wells=self.n_wells)
         self.constraints: WellSystemConstraints = constraints.validate()
 
-        self.scaling_factor = min(10, self.constraints.gl_max) # Max value to avoid too large perturbations when gl_max constraint is relaxed
+        if scaling_factor is None:
+            self.scaling_factor = min(10, self.constraints.gl_max) # Max value to avoid too large perturbations when gl_max constraint is relaxed
+        else:
+            self.scaling_factor = scaling_factor
+            
 
         # Initialize gradient object
         use_penalty = True if self.hyperparams.rho > 0 else False
@@ -473,165 +478,159 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 50
-    n_sim = 25
+    n_runs = 10
+    n_sim = 50
 
     experiments = [
-        # Experiment on running the system from optimized initial conditions
-        # Rho 4.0 | water <= 20
-        {"config": "mixedprod_optchoke20_1",
-         "save": "experiments optchoke/rho4_water20",
-         "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 4.0 | water <= 20\n"
+        # Experiment on changing the scaling of the decision vector.
+        # Scaling = 1.0
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor/scaling1.0",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 1.0\n"
                         "Default mixed production well system\n",
-         "start": "Approx. optimal conditions from prior experiment",
-         "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["default"],
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 4.0},
-        },
-        # Rho 8.0 | water <= 20
-        {"config": "mixedprod_optchoke20_1",
-        "save": "experiments optchoke/rho8_water20",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 8.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
-        },
-        # Rho 12.0 | water <= 20
-        {"config": "mixedprod_optchoke20_1",
-        "save": "experiments optchoke/rho12_water20",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 12.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 12.0},
-        },
-        # Rho 16.0 | water <= 20
-        {"config": "mixedprod_optchoke20_1",
-        "save": "experiments optchoke/rho16_water20",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 16.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 16.0},
-        },
-        # Rho 8.0 | water <= 20, but different initial conditions (more gas lift)
-        {"config": "mixedprod_optchoke20_2",
-         "save": "experiments optchoke/rho8_water20_moregaslift",
-         "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 8.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-         "start": "Approx. optimal conditions from prior experiment, maxed gas lift",
+         "start": "Choke 0.5 | Gas lift 0.0",
          "n_wells": 5,
          "constraints": CONSTRAINT_PRESETS["default"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
          "hyperparam_overrides": {"rho": 8.0},
-        },
-        # Rho 4.0 | water <= 15
-        {"config": "mixedprod_optchoke15",
-         "save": "experiments optchoke/rho4_water15",
-         "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 4.0 | water <= 15\n"
+         "scaling_factor": 1.0,
+         },
+         # Scaling = 0.5
+        {"config": "mixedprod_choke50",
+        "save": "experiments scaling factor/scaling0.5",
+        "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 0.5\n"
                         "Default mixed production well system\n",
-         "start": "Approx. optimal conditions from prior experiment",
+        "start": "Choke 0.5 | Gas lift 0.0",
+        "n_wells": 5,
+        "constraints": CONSTRAINT_PRESETS["default"],
+        "hyperparams": HYPERPARAM_PRESETS["default"],
+        "hyperparam_overrides": {"rho": 8.0},
+        "scaling_factor": 0.5,
+        },
+        # Scaling = 2.5
+        {"config": "mixedprod_choke50",
+        "save": "experiments scaling factor/scaling2.5",
+        "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 2.5\n"
+                        "Default mixed production well system\n",
+        "start": "Choke 0.5 | Gas lift 0.0",
+        "n_wells": 5,
+        "constraints": CONSTRAINT_PRESETS["default"],
+        "hyperparams": HYPERPARAM_PRESETS["default"],
+        "hyperparam_overrides": {"rho": 8.0},
+        "scaling_factor": 2.5,
+        },
+        # Scaling = 5.0
+        {"config": "mixedprod_choke50",
+        "save": "experiments scaling factor/scaling5.0",
+        "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 5.0\n"
+                        "Default mixed production well system\n",
+        "start": "Choke 0.5 | Gas lift 0.0",
+        "n_wells": 5,
+        "constraints": CONSTRAINT_PRESETS["default"],
+        "hyperparams": HYPERPARAM_PRESETS["default"],
+        "hyperparam_overrides": {"rho": 8.0},
+        "scaling_factor": 5.0,
+        },
+        # Scaling = 7.5 
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor/scaling7.5",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 7.5\n"
+                        "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0},
+         "scaling_factor": 7.5,
+         },
+         # Scaling = 10.0
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor/scaling10.0",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 10.0\n"
+                        "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0},
+         "scaling_factor": 10.0,
+         },
+         # Scaling = 1, water constraint = 15.0
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor/scaling1.0_wat15.0",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 1.0\n"
+                        "Water production constraint = 15.0\n"
+                        "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
          "n_wells": 5,
          "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 4.0},
-        },
-        # Rho 8.0 | water <= 15
-        {"config": "mixedprod_optchoke15",
-        "save": "experiments optchoke/rho8_water15",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 8.0 | water <= 15\n"
+         "hyperparam_overrides": {"rho": 2.0},
+         "scaling_factor": 1.0,
+         },
+         # Scaling = 0.5, water constraint = 15.0
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor/scaling0.5_wat15.0",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 0.5\n"
+                        "Water production constraint = 15.0\n"
                         "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
-        },
-        # Rho 12.0 | water <= 15
-        {"config": "mixedprod_optchoke15",
-        "save": "experiments optchoke/rho12_water15",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 12.0 | water <= 15\n"
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+         "scaling_factor": 0.5,
+         },
+         # Scaling = 2.5, water constraint = 15.0
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor/scaling2.5_wat15.0",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 2.5\n"
+                        "Water production constraint = 15.0\n"
                         "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 12.0},
-        },
-        # Rho 2.0 | water <= 10
-        {"config": "mixedprod_optchoke10",
-        "save": "experiments optchoke/rho2_water10",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                    "Clips the gradient step size to max 0.2\n"
-                    "No new sampling of conditions!\n"
-                    "rho = 2.0 | water <= 10\n"
-                    "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 2.0},
-        },
-        # Rho 4.0 | water <= 10
-        {"config": "mixedprod_optchoke10",
-        "save": "experiments optchoke/rho4_water10",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 4.0 | water <= 10\n"
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+         "scaling_factor": 2.5,
+         },
+        # Scaling = 5.0, water constraint = 15.0
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor/scaling5.0_wat15.0",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 5.0\n"
+                        "Water production constraint = 15.0\n"
                         "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 4.0},
-        },
-        # Rho 8.0 | water <= 10
-        {"config": "mixedprod_optchoke10",
-        "save": "experiments optchoke/rho8_water10",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 8.0 | water <= 10\n"
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+         "scaling_factor": 5.0,
+         },
+         # Scaling = 7.5, water constraint = 15.0
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor/scaling7.5_wat15.0",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                        "Scaling factor = 7.5\n"
+                        "Water production constraint = 15.0\n"
                         "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
-        },
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 2.0},
+         "scaling_factor": 7.5,
+         },
     ]
 
     # ----------- Main script -----------
@@ -644,9 +643,12 @@ if __name__ == "__main__":
         parent_hyperparams = experiment['hyperparams']
         overrides = experiment.get("hyperparam_overrides", {})
 
+        scaling_factor = experiment['scaling_factor']
+
         parent_spsaopt = SPSA(wells=parent_wells,
                               constraints=parent_constraints,
                               hyperparam_config=parent_hyperparams,
+                              scaling_factor=scaling_factor,
                               **overrides)
         
         # Create initial log
