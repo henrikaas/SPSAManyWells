@@ -665,77 +665,79 @@ def plot_step_size(experiment_name: str, n_runs: int | None = 10, iteration: int
 
     plt.show()
 
-def plot_contour_function_landscape(
-    well: pd.DataFrame,
-    sigma=0.0,
-    normalize: str = "None",
-    maxmax: float | None = None,
-    minmin: float | None = None):
-    """
-    Visualizes the function landscape (WGL vs CHK vs WOIL) using contourf.
-    Supports local or global normalization and optional Gaussian smoothing.
-    """
-    if normalize == "global" and (maxmax is None or minmin is None):
-        raise ValueError("For global normalization, maxmax and minmin must be provided.")
 
-    # 1. Sort by CHK and WGL
-    df_sorted = well.sort_values(by=["WGL", "CHK"])
-
-    # 2. Get unique x and y coordinates
-    x_vals = np.sort(df_sorted["CHK"].unique())
-    y_vals = np.sort(df_sorted["WGL"].unique())
-
-    # 3. Pivot to form 2D grid
-    grid = df_sorted.pivot_table(index="WGL", columns="CHK", values="WOIL")
-    grid = grid.interpolate(method="linear", axis=0).interpolate(method="linear", axis=1)
-    data = grid.values
-
-    print("Grid shape:", data.shape)
-
-    # --- Step 2: Normalize ---
-    if normalize == "local":
-        data = (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data))
-        vmin, vmax = None, None
-    elif normalize == "global":
-        data = (data - minmin) / (maxmax - minmin)
-        vmin, vmax = 0, 1
-    else:
-        vmin, vmax = None, None
-
-    # --- Step 3: Smooth ---
-    data = gaussian_filter(data, sigma=sigma)
-
-    # --- Step 4: Contour plot ---
-    plt.figure(figsize=(6, 6))
-    low_cut = np.nanpercentile(data, 2)
-
-    contour = plt.contourf(
-        x_vals,
-        y_vals,
-        data,
-        levels=50,                # number of contour levels
-        cmap="viridis",
-        vmin=vmin, # or low_cut
-        vmax=vmax,
-    )
-
-    # Add grey grid lines (optional, coordinate-aware)
-    # for x in x_vals:
-    #     plt.axvline(x, color="grey", linewidth=0.5, alpha=0.4)
-    # for y in y_vals:
-    #     plt.axhline(y, color="grey", linewidth=0.5, alpha=0.4)
-
-    plt.colorbar(contour, label="Normalized Value")
-    plt.title("Smoothed Contour Map (Viridis)")
-    plt.xlabel("CHK")
-    plt.ylabel("WGL")
-    plt.tight_layout()
-    plt.show()
-
-def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | None = None, sigma: float = 0.0, normalize: str = "None"):
+def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | None = None, sigma: float = 0.0, normalize: str = "None", objective: list[str] = ["WOIL"]):
     """
     Plots function landscapes for multiple wells in an experiment.
     """
+    def plot_contour_function_landscape(
+        well: pd.DataFrame,
+        sigma=0.0,
+        normalize: str = "None",
+        maxmax: float | None = None,
+        minmin: float | None = None):
+        """
+        Visualizes the function landscape (WGL vs CHK vs WOIL) using contourf.
+        Supports local or global normalization and optional Gaussian smoothing.
+        """
+        if normalize == "global" and (maxmax is None or minmin is None):
+            raise ValueError("For global normalization, maxmax and minmin must be provided.")
+
+        # 1. Sort by CHK and WGL
+        df_sorted = well.sort_values(by=["WGL", "CHK"])
+        df_sorted["OBJ"] = df_sorted[objective].sum(axis=1)
+
+        # 2. Get unique x and y coordinates
+        x_vals = np.sort(df_sorted["CHK"].unique())
+        y_vals = np.sort(df_sorted["WGL"].unique())
+
+        # 3. Pivot to form 2D grid
+        grid = df_sorted.pivot_table(index="WGL", columns="CHK", values="OBJ")
+        grid = grid.interpolate(method="linear", axis=0).interpolate(method="linear", axis=1)
+        data = grid.values
+
+        print("Grid shape:", data.shape)
+
+        # --- Step 2: Normalize ---
+        if normalize == "local":
+            data = (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data))
+            vmin, vmax = None, None
+        elif normalize == "global":
+            data = (data - minmin) / (maxmax - minmin)
+            vmin, vmax = 0, 1
+        else:
+            vmin, vmax = None, None
+
+        # --- Step 3: Smooth ---
+        data = gaussian_filter(data, sigma=sigma)
+
+        # --- Step 4: Contour plot ---
+        plt.figure(figsize=(6, 6))
+        low_cut = np.nanpercentile(data, 2)
+
+        contour = plt.contourf(
+            x_vals,
+            y_vals,
+            data,
+            levels=60,                # number of contour levels
+            cmap="viridis",
+            vmin=vmin, # or low_cut
+            vmax=vmax,
+        )
+
+        # Add grey grid lines (optional, coordinate-aware)
+        # for x in x_vals:
+        #     plt.axvline(x, color="grey", linewidth=0.5, alpha=0.4)
+        # for y in y_vals:
+        #     plt.axhline(y, color="grey", linewidth=0.5, alpha=0.4)
+
+        plt.colorbar(contour, label="Normalized Value")
+        plt.title("Smoothed Contour Map (Viridis)")
+        plt.xlabel("CHK")
+        plt.ylabel("WGL")
+        plt.tight_layout()
+        plt.show()
+    
     experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
     runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
     n_runs = len(runs)
@@ -767,7 +769,7 @@ if __name__ == "__main__":
     # print_production_sequence(experiment_name="experiments fixed gradient gain sequence/rho1_water10")
     # plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=[7], type="line", save=True)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
-    plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=None, sigma=1.0, normalize="local")
+    plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=None, sigma=1.0, normalize="None", objective=["WOIL", "WGAS"])
 
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
