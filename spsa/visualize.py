@@ -266,7 +266,7 @@ def plot_spsa_experiment(experiment_name: str,
         axs[1].plot(len(gasl)-1, gasl[-1], '|', color='green', markersize=4) # Mark final point
         axs[2].plot(len(water)-1, water[-1], '|', color='blue', markersize=4) # Mark final point
 
-    # axs[0].set_ylim(top=110, bottom=95)
+    axs[0].set_ylim(top=70)
     # axs[1].set_ylim(top=10, bottom=0)
     # axs[2].set_ylim(top=78, bottom=38)
     axs[0].set_title('Oil Production')
@@ -769,7 +769,7 @@ if __name__ == "__main__":
     # print_production_sequence(experiment_name="experiments fixed gradient gain sequence/rho1_water10")
     # plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=[7], type="line", save=True)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
-    plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=None, sigma=1.0, normalize="None", objective=["WOIL", "WGAS"])
+    # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=None, sigma=1.0, normalize="None", objective=["WWAT"])
 
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
@@ -780,10 +780,11 @@ if __name__ == "__main__":
     # main_exp = "experiments rho max stepsize"
     # main_exp = "experiments fixed gradient gain sequence"
     # main_exp = "experiments optchoke"
+    main_exp = "experiments scaling factor"
 
-    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    # experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
-    # for exp in experiments:
-    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
+    for exp in experiments:
+        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+        plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
