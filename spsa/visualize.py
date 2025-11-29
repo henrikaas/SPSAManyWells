@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib as mpl
 import seaborn as sns
 from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
@@ -67,8 +68,30 @@ INIT_INFO: dict = {
     },
 }
 
+
+# Seaborn style
 sns.set_style("darkgrid")
-plt.rcParams.update({'font.size':16})
+# sns.set_context("talk")
+
+# # Update Matplotlib rcParams for finer control
+plt.rcParams.update({
+    "font.size": 16,              # Global font size
+    'font.family': 'serif',       # Use a serif font
+    'axes.linewidth': 1,          # Thinner axes
+    'axes.labelsize': 16,
+    'xtick.labelsize': 14,
+    'ytick.labelsize': 14,
+    'xtick.direction': 'out',
+    'ytick.direction': 'out',
+    'xtick.top': False,
+    'ytick.right': False,
+    # 'axes.grid': False,         # Remove grid lines (for contour plots)
+})
+
+CUSTOM_RC = {
+    "font.size": 16,
+    "font.family": "serif",
+}
 
 # -------------- Helper functions -----------------
 def extract_settings(experiment_dir: Path) -> dict:
@@ -666,7 +689,7 @@ def plot_step_size(experiment_name: str, n_runs: int | None = 10, iteration: int
     plt.show()
 
 
-def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | None = None, sigma: float = 0.0, normalize: str = "None", objective: list[str] = ["WOIL"]):
+def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | None = None, sigma: float = 0.0, normalize: str = "None", objective: list[str] = ["WOIL"], save: bool = False):
     """
     Plots function landscapes for multiple wells in an experiment.
     """
@@ -675,7 +698,9 @@ def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | N
         sigma=0.0,
         normalize: str = "None",
         maxmax: float | None = None,
-        minmin: float | None = None):
+        minmin: float | None = None,
+        save: bool = False,
+    ):
         """
         Visualizes the function landscape (WGL vs CHK vs WOIL) using contourf.
         Supports local or global normalization and optional Gaussian smoothing.
@@ -712,31 +737,36 @@ def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | N
         data = gaussian_filter(data, sigma=sigma)
 
         # --- Step 4: Contour plot ---
-        plt.figure(figsize=(6, 6))
-        low_cut = np.nanpercentile(data, 2)
+        with sns.axes_style(None):
+            plt.figure(figsize=(6,6))
+            low_cut = np.nanpercentile(data, 2)
 
-        contour = plt.contourf(
-            x_vals,
-            y_vals,
-            data,
-            levels=60,                # number of contour levels
-            cmap="viridis",
-            vmin=vmin, # or low_cut
-            vmax=vmax,
-        )
+            contour = plt.contourf(
+                x_vals,
+                y_vals,
+                data,
+                levels=60,                # number of contour levels
+                cmap="viridis",
+                vmin=vmin, # or low_cut
+                vmax=vmax,
+            )
 
-        # Add grey grid lines (optional, coordinate-aware)
-        # for x in x_vals:
-        #     plt.axvline(x, color="grey", linewidth=0.5, alpha=0.4)
-        # for y in y_vals:
-        #     plt.axhline(y, color="grey", linewidth=0.5, alpha=0.4)
+            # Add grey grid lines (optional, coordinate-aware)
+            # for x in x_vals:
+            #     plt.axvline(x, color="grey", linewidth=0.5, alpha=0.4)
+            # for y in y_vals:
+            #     plt.axhline(y, color="grey", linewidth=0.5, alpha=0.4)
 
-        plt.colorbar(contour, label="Normalized Value")
-        plt.title("Smoothed Contour Map (Viridis)")
-        plt.xlabel("CHK")
-        plt.ylabel("WGL")
-        plt.tight_layout()
-        plt.show()
+            # plt.colorbar(contour, label="Normalized Value")
+            # plt.title("Smoothed Contour Map (Viridis)")
+            plt.xlabel("Choke")
+            plt.ylabel("Gas lift")
+            plt.tight_layout()
+            if save:
+                save_dir = f"{PLOT_DIR}/{experiment_name}"
+                os.makedirs(save_dir, exist_ok=True)
+                plt.savefig(f"{save_dir}/well{well['ID'].iloc[0]}_{'_'.join(objective)}.png", dpi=300, bbox_inches="tight")
+            plt.show()
     
     experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
     runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
@@ -760,16 +790,135 @@ def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | N
         for well_idx in wells:
             well = wells_grouped.get_group(well_idx)
             print(f"Plotting landscape for Well {well_idx} in Run {run_idx}...")
-            plot_contour_function_landscape(well, sigma=sigma, normalize=normalize, maxmax=maxmax, minmin=minmin)
+
+            with plt.rc_context(mpl.rcParamsDefault):
+                with plt.rc_context(CUSTOM_RC):
+                    plot_contour_function_landscape(well, sigma=sigma, normalize=normalize, maxmax=maxmax, minmin=minmin, save=save)
+
+def plot_mean_function_landscape(
+    experiment_name: str,
+    wells: list[int] | None = None,
+    sigma: float = 0.0,
+    normalize: str = "None",
+    objective: list[str] = ["WOIL"],
+    save: bool = False,
+    ):
+    """
+    Computes and plots the mean normalized function landscape across all wells.
+    """
+    def compute_normalized_grid(well, sigma=0.0, normalize="None", maxmax=None, minmin=None, objective=["WOIL"]):
+        """Helper: compute the normalized smoothed grid for a single well."""
+        df_sorted = well.sort_values(by=["WGL", "CHK"])
+        df_sorted["OBJ"] = df_sorted[objective].sum(axis=1)
+
+        # pivot to 2D grid
+        grid = df_sorted.pivot_table(index="WGL", columns="CHK", values="OBJ")
+        grid = grid.interpolate(method="linear", axis=0).interpolate(method="linear", axis=1)
+        data = grid.values
+
+        try:
+            # normalize
+            if normalize == "local":
+                data = (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data))
+            elif normalize == "global":
+                if maxmax is None or minmin is None:
+                    raise ValueError("Global normalization requires maxmax and minmin")
+                data = (data - minmin) / (maxmax - minmin)
+
+            # smooth
+            data = gaussian_filter(data, sigma=sigma)
+        except Exception as e:
+            print(f"Error processing well {well['ID'].iloc[0]}: {e}")
+            return None, None, None
+        
+        return data, np.sort(df_sorted["CHK"].unique()), np.sort(df_sorted["WGL"].unique())
+            
+    experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
+    runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+    n_runs = len(runs)
+
+    all_grids = []
+    x_vals, y_vals = None, None
+
+    for run_idx, run in enumerate(runs):
+        print(f"Processing Run {run_idx}/{n_runs-1}...")
+        path = Path(f"{run}/iteration_0/iteration_0.csv")
+        if not path.exists():
+            print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
+            continue
+
+        df = pd.read_csv(path)
+        wells_grouped = df.groupby("ID")
+
+        # global normalization reference
+        maxmax = df["WOIL"].max()
+        minmin = df["WOIL"].min()
+
+        # select wells
+        wells_to_plot = wells or list(wells_grouped.groups.keys())
+
+        for well_idx in wells_to_plot:
+            well = wells_grouped.get_group(well_idx)
+            grid, x_vals, y_vals = compute_normalized_grid(
+                well, sigma=sigma, normalize=normalize, maxmax=maxmax, minmin=minmin
+            )
+            if grid is None:
+                continue
+            all_grids.append(grid)
+
+    if not all_grids:
+        print("No valid wells found for averaging.")
+        return
+
+    x_vals = np.linspace(0, 1, 50)
+    y_vals = np.linspace(0, 5, 50)
+    # Ensure all grids have the same shape
+    shapes = [g.shape for g in all_grids]
+    common_shape = max(set(shapes), key=shapes.count)  # most frequent shape
+
+    filtered_grids = [g for g in all_grids if g.shape == common_shape]
+    if len(filtered_grids) < len(all_grids):
+        print(f"Skipping {len(all_grids) - len(filtered_grids)} grids due to shape mismatch.")
+
+
+    # --- Compute mean grid ---
+    all_grids = np.stack(filtered_grids, axis=0)
+    mean_grid = np.nanmean(all_grids, axis=0)
+
+    with plt.rc_context(mpl.rcParamsDefault):
+        with plt.rc_context(CUSTOM_RC):
+
+            # --- Plot mean contour ---
+            plt.figure(figsize=(6, 6))
+            contour = plt.contourf(
+                x_vals,
+                y_vals,
+                mean_grid,
+                levels=60,
+                cmap="viridis",
+                vmin=0,
+                vmax=1
+            )
+            # plt.colorbar(contour, label="Average Normalized WOIL")
+            # plt.title(f"Average Functional Landscape\n({experiment_name})")
+            plt.xlabel("Choke")
+            plt.ylabel("Gas lift")
+            plt.tight_layout()
+            if save:
+                save_dir = f"{PLOT_DIR}/{experiment_name}"
+                os.makedirs(save_dir, exist_ok=True)
+                plt.savefig(f"{save_dir}/mean_landscape_{'_'.join(objective)}.png", dpi=300, bbox_inches="tight")
+            plt.show()
 
 if __name__ == "__main__":
-    # plot_spsa_experiment(experiment_name="experiments rho v3/rho2_water10", only_optimizing_iterations=True)
-    # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
-    # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
-    # print_production_sequence(experiment_name="experiments fixed gradient gain sequence/rho1_water10")
-    # plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=[7], type="line", save=True)
-    # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
-    # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=None, sigma=1.0, normalize="None", objective=["WWAT"])
+    plot_spsa_experiment(experiment_name="experiments rho v3/rho2_water10", only_optimizing_iterations=True)
+    plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
+    plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
+    print_production_sequence(experiment_name="experiments fixed gradient gain sequence/rho1_water10")
+    plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
+    plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
+    plot_multiple_function_landscapes(experiment_name="grid evaluation", wells=[2,7,11,13,25,37,8], sigma=1.0, normalize="local", objective=["WWAT"], save=True)
+    plot_mean_function_landscape(experiment_name="grid evaluation", wells=None, sigma=1.0, normalize="local", objective=["WWAT"], save=True)
 
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
