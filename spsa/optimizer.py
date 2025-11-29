@@ -482,65 +482,126 @@ if __name__ == "__main__":
     n_sim = 50
 
     experiments = [
-        # Experiment on changing the scaling of the decision vector.
-        # Scaling = 1.0
+        # Experiment on changing the scaling of the decision vector. Version 2, where we change the gradient sequence as well.
+        # Scaling = 2.5, alpha = 0.602 (default)
         {"config": "mixedprod_choke50",
-         "save": "experiments scaling factor/scaling1.0",
+         "save": "experiments scaling factor v2/scaling2.5_alpha0.602",
          "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 1.0\n"
-                        "Default mixed production well system\n",
+                "Scaling factor = 2.5\n"
+                "Alpha = 0.602 (default)\n"
+                "Default mixed production well system\n",
          "start": "Choke 0.5 | Gas lift 0.0",
          "n_wells": 5,
          "constraints": CONSTRAINT_PRESETS["default"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
          "hyperparam_overrides": {"rho": 8.0},
-         "scaling_factor": 1.0,
+         "scaling_factor": 2.5,
          },
-         # Scaling = 0.5
+        # Scaling = 2.5, alpha = 0.8
         {"config": "mixedprod_choke50",
-        "save": "experiments scaling factor/scaling0.5",
-        "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 0.5\n"
-                        "Default mixed production well system\n",
-        "start": "Choke 0.5 | Gas lift 0.0",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
-        "scaling_factor": 0.5,
-        },
-        # Scaling = 2.5
-        {"config": "mixedprod_choke50",
-        "save": "experiments scaling factor/scaling2.5",
-        "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 2.5\n"
-                        "Default mixed production well system\n",
-        "start": "Choke 0.5 | Gas lift 0.0",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
-        "scaling_factor": 2.5,
-        },
-        # Scaling = 5.0
-        {"config": "mixedprod_choke50",
-        "save": "experiments scaling factor/scaling5.0",
-        "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 5.0\n"
-                        "Default mixed production well system\n",
-        "start": "Choke 0.5 | Gas lift 0.0",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
-        "scaling_factor": 5.0,
-        },
-        # Scaling = 7.5 
-        {"config": "mixedprod_choke50",
-         "save": "experiments scaling factor/scaling7.5",
+         "save": "experiments scaling factor v2/scaling2.5_alpha0.8",
          "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 7.5\n"
-                        "Default mixed production well system\n",
+                "Scaling factor = 2.5\n"
+                "Alpha = 0.8\n"
+                "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.8},
+         "scaling_factor": 2.5,
+         },
+        # Scaling = 2.5, alpha = 0.4
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor v2/scaling2.5_alpha0.4",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                "Scaling factor = 2.5\n"
+                "Alpha = 0.4\n"
+                "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.4},
+         "scaling_factor": 2.5,
+         },
+        # Scaling = 2.5, alpha = 0.3
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor v2/scaling2.5_alpha0.3",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                "Scaling factor = 2.5\n"
+                "Alpha = 0.3\n"
+                "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.3},
+         "scaling_factor": 2.5,
+         },
+        # Scaling = 5.0, alpha = 0.602 (default)
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor v2/scaling5.0_alpha0.602",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                "Scaling factor = 5.0\n"
+                "Alpha = 0.602 (default)\n"
+                "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0},
+         "scaling_factor": 5.0,
+         },
+        # Scaling = 5.0, alpha = 0.8
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor v2/scaling5.0_alpha0.8",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                "Scaling factor = 5.0\n"
+                "Alpha = 0.8\n"
+                "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.8},
+         "scaling_factor": 5.0,
+         },
+        # Scaling = 5.0, alpha = 0.4
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor v2/scaling5.0_alpha0.4",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                "Scaling factor = 5.0\n"
+                "Alpha = 0.4\n"
+                "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.4},
+         "scaling_factor": 5.0,
+         },
+        # Scaling = 5.0, alpha = 0.3
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor v2/scaling5.0_alpha0.3",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+                "Scaling factor = 5.0\n"
+                "Alpha = 0.3\n"
+                "Default mixed production well system\n",
+         "start": "Choke 0.5 | Gas lift 0.0",
+         "n_wells": 5,
+         "constraints": CONSTRAINT_PRESETS["default"],
+         "hyperparams": HYPERPARAM_PRESETS["default"],
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.3},
+         "scaling_factor": 5.0,
+         },
+        # Scaling = 7.5, alpha = 0.602 (default)
+        {"config": "mixedprod_choke50",
+         "save": "experiments scaling factor v2/scaling7.5_alpha0.602",
+         "description": "Experiment on changing the scaling of the decision vector.\n"
+            "Scaling factor = 7.5\n"
+            "Alpha = 0.602 (default)\n"
+            "Default mixed production well system\n",
          "start": "Choke 0.5 | Gas lift 0.0",
          "n_wells": 5,
          "constraints": CONSTRAINT_PRESETS["default"],
@@ -548,87 +609,46 @@ if __name__ == "__main__":
          "hyperparam_overrides": {"rho": 8.0},
          "scaling_factor": 7.5,
          },
-         # Scaling = 10.0
+        # Scaling = 7.5, alpha = 0.8
         {"config": "mixedprod_choke50",
-         "save": "experiments scaling factor/scaling10.0",
+         "save": "experiments scaling factor v2/scaling7.5_alpha0.8",
          "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 10.0\n"
-                        "Default mixed production well system\n",
+            "Scaling factor = 7.5\n"
+            "Alpha = 0.8\n"
+            "Default mixed production well system\n",
          "start": "Choke 0.5 | Gas lift 0.0",
          "n_wells": 5,
          "constraints": CONSTRAINT_PRESETS["default"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 8.0},
-         "scaling_factor": 10.0,
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.8},
+         "scaling_factor": 7.5,
          },
-         # Scaling = 1, water constraint = 15.0
+        # Scaling = 7.5, alpha = 0.4
         {"config": "mixedprod_choke50",
-         "save": "experiments scaling factor/scaling1.0_wat15.0",
+         "save": "experiments scaling factor v2/scaling7.5_alpha0.4",
          "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 1.0\n"
-                        "Water production constraint = 15.0\n"
-                        "Default mixed production well system\n",
+            "Scaling factor = 7.5\n"
+            "Alpha = 0.4\n"
+            "Default mixed production well system\n",
          "start": "Choke 0.5 | Gas lift 0.0",
          "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "constraints": CONSTRAINT_PRESETS["default"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 2.0},
-         "scaling_factor": 1.0,
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.4},
+         "scaling_factor": 7.5,
          },
-         # Scaling = 0.5, water constraint = 15.0
+        # Scaling = 7.5, alpha = 0.3
         {"config": "mixedprod_choke50",
-         "save": "experiments scaling factor/scaling0.5_wat15.0",
+         "save": "experiments scaling factor v2/scaling7.5_alpha0.3",
          "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 0.5\n"
-                        "Water production constraint = 15.0\n"
-                        "Default mixed production well system\n",
+            "Scaling factor = 7.5\n"
+            "Alpha = 0.3\n"
+            "Default mixed production well system\n",
          "start": "Choke 0.5 | Gas lift 0.0",
          "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
+         "constraints": CONSTRAINT_PRESETS["default"],
          "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 2.0},
-         "scaling_factor": 0.5,
-         },
-         # Scaling = 2.5, water constraint = 15.0
-        {"config": "mixedprod_choke50",
-         "save": "experiments scaling factor/scaling2.5_wat15.0",
-         "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 2.5\n"
-                        "Water production constraint = 15.0\n"
-                        "Default mixed production well system\n",
-         "start": "Choke 0.5 | Gas lift 0.0",
-         "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 2.0},
-         "scaling_factor": 2.5,
-         },
-        # Scaling = 5.0, water constraint = 15.0
-        {"config": "mixedprod_choke50",
-         "save": "experiments scaling factor/scaling5.0_wat15.0",
-         "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 5.0\n"
-                        "Water production constraint = 15.0\n"
-                        "Default mixed production well system\n",
-         "start": "Choke 0.5 | Gas lift 0.0",
-         "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 2.0},
-         "scaling_factor": 5.0,
-         },
-         # Scaling = 7.5, water constraint = 15.0
-        {"config": "mixedprod_choke50",
-         "save": "experiments scaling factor/scaling7.5_wat15.0",
-         "description": "Experiment on changing the scaling of the decision vector.\n"
-                        "Scaling factor = 7.5\n"
-                        "Water production constraint = 15.0\n"
-                        "Default mixed production well system\n",
-         "start": "Choke 0.5 | Gas lift 0.0",
-         "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 2.0},
+         "hyperparam_overrides": {"rho": 8.0, "alpha": 0.3},
          "scaling_factor": 7.5,
          },
     ]
