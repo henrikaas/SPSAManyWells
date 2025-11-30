@@ -7,6 +7,7 @@ import copy
 import os
 import multiprocessing as mp
 from dataclasses import dataclass, replace
+import random
 
 from manywells.simulator import SSDFSimulator, SimError, WellProperties, BoundaryConditions
 from scripts.data_generation.well import Well, sample_well
@@ -32,7 +33,7 @@ class SPSAConfig:
     beta:  float = 0.602    # dual-rate decay
     gamma: float = 0.051    # perturbation decay
     sigma: float = 0.0      # noise level for oil evaluation
-    rho:   float = 1.0      # penalty parameter for penalty method. NB: Needs to be 0 to disable penalty method
+    rho:   float = 8.0      # penalty parameter for penalty method. NB: Needs to be 0 to disable penalty method
 
     def validate(self) -> "SPSAConfig":
         if not (0 <= self.alpha <= 1):
@@ -50,6 +51,7 @@ class SPSAConfig:
 BERNOULLI_DIRECTIONS = [-1, 1]
 HYPERPARAM_PRESETS: dict[str, SPSAConfig] = {
     "default": SPSAConfig(),
+    "slower_ak": SPSAConfig(a=0.15, A=5, alpha=0.502),
     # TODO: Tune these presets
     # "robust":  SPSAConfig(a=0.1, c=0.2, A=100, alpha=0.2, beta=0.5, sigma=0.1, rho=0.1),
     # "fast":    SPSAConfig(a=0.5, c=0.05, A=10,  alpha=0.4, beta=0.7, sigma=0.0, rho=0.0),
@@ -58,7 +60,6 @@ CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
     "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5),
     "strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=10.0, max_wells=5),
     "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
-    "max_wells_2": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=2),
     "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
     "relaxed_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=1000, max_wells=5),
     # TODO: Define more presets
@@ -104,6 +105,7 @@ class SPSA:
         self.constraints: WellSystemConstraints = constraints.validate()
 
         self.scaling_factor = min(10, self.constraints.gl_max) # Max value to avoid too large perturbations when gl_max constraint is relaxed
+        self.use_cyclic = True if self.constraints.max_wells < self.n_wells else False # Use cyclic SPSA if max_wells constraint is active
 
         # Initialize gradient object
         use_penalty = True if self.hyperparams.rho > 0 else False
@@ -131,6 +133,22 @@ class SPSA:
         u_direction = np.random.choice(BERNOULLI_DIRECTIONS)
         gl_direction = np.random.choice(BERNOULLI_DIRECTIONS)
         return (u_direction, gl_direction)
+
+    def _draw_subvector(self) -> list[list[int]]:
+        """
+        Draws a set of subvectors for cyclic SPSA.
+        Each subvector is a set of well indices that will be perturbed together in each iteration.
+        The size of each subvector is <= max_wells.
+
+        Returns:
+            list[list[int]]: A list of subvectors, where each subvector is a list of well indices.
+        """
+        max_wells = self.constraints.max_wells
+
+        indices = np.arange(self.n_wells)
+        np.random.shuffle(indices)
+        subvectors = [indices[i:i + max_wells].tolist() for i in range(0, self.n_wells, max_wells)]
+        return subvectors
     
     def _generate_perturbation(self, ck: float, u: float, gl: float, has_gl: bool):
         """
@@ -221,6 +239,12 @@ class SPSA:
             save_path (str): Path to save the results. If None, results are not saved.
         """
         n_sim_wells = self.constraints.max_wells
+        if self.use_cyclic:
+            pert_vectors = self._draw_subvector() # Draw the subvectors for cyclic SPSA
+            subvector_k = [0 for _ in range(len(pert_vectors))] # Track iteration number for each subvector, used for the a_k step size calculation
+        else:
+            pert_vectors = [list(range(self.n_wells))] # Single vector with all wells
+
         well_idxs = np.arange(0, self.n_wells)
 
         simulators = [SSDFSimulator(w.wp, w.bc) for w in self.wells] # Simulator object for each well
@@ -265,7 +289,7 @@ class SPSA:
             # Perturb the system
             # Draw perturbation vector and simulate in each direction
             # ==============================
-            chosen_wells_idxs = np.sort(np.random.choice(well_idxs, n_sim_wells, replace=False)) # Randomly choose which wells to perturb
+            chosen_wells_idxs = random.choice(pert_vectors)
             unselected_well_idxs = list(set(well_idxs) - set(chosen_wells_idxs))
             cur_state = np.array([[self.wells[idx].bc.u, self.wells[idx].bc.w_lg] for idx in chosen_wells_idxs]) # Current state of the decision vector in the chosen wells
 
@@ -385,6 +409,12 @@ class SPSA:
                 y_pos = calculate_state(well_data=pos_well_data + stat_well_data)
                 y_neg = calculate_state(well_data=neg_well_data + stat_well_data)
 
+                if self.use_cyclic:
+                    # Update subvector iteration count
+                    subvector_idx = pert_vectors.index(chosen_wells_idxs)
+                    subvector_k[subvector_idx] += 1
+                    ak = self.hyperparams.a / ((subvector_k[subvector_idx] + self.hyperparams.A) ** self.hyperparams.alpha)
+
                 # Compute the gradient
                 gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions))
                 step_size = gradient * ak
@@ -473,165 +503,123 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 50
-    n_sim = 25
+    n_runs = 20
+    n_sim = 100
 
     experiments = [
-        # Experiment on running the system from optimized initial conditions
-        # Rho 4.0 | water <= 20
-        {"config": "mixedprod_optchoke20_1",
-         "save": "experiments optchoke/rho4_water20",
-         "description": "Experiment on running the system from optimized initial conditions\n"
+        # Experiment on using cyclic SPSA on a 20well system
+        # Max wells = 2
+        {"config": "20randomwells",
+         "save": "experiments cyclicSPSA/20wells_perturb2",
+         "description": "Experiment on cyclicSPSA for different values of max wells\n"
                         "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
-                        "rho = 4.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-         "start": "Approx. optimal conditions from prior experiment",
-         "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["default"],
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 4.0},
+                        "maxwells = 4\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=2),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {},
         },
-        # Rho 8.0 | water <= 20
-        {"config": "mixedprod_optchoke20_1",
-        "save": "experiments optchoke/rho8_water20",
-        "description": "Experiment on running the system from optimized initial conditions\n"
+        # Max wells = 3
+        {"config": "20randomwells",
+         "save": "experiments cyclicSPSA/20wells_perturb3",
+         "description": "Experiment on cyclicSPSA for different values of max wells\n"
                         "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
-                        "rho = 8.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
+                        "maxwells = 3\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=3),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {},
         },
-        # Rho 12.0 | water <= 20
-        {"config": "mixedprod_optchoke20_1",
-        "save": "experiments optchoke/rho12_water20",
-        "description": "Experiment on running the system from optimized initial conditions\n"
+        # Max wells = 4
+        {"config": "20randomwells",
+         "save": "experiments cyclicSPSA/20wells_perturb4",
+         "description": "Experiment on cyclicSPSA for different values of max wells\n"
                         "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
-                        "rho = 12.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 12.0},
+                        "maxwells = 4\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=4),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {},
         },
-        # Rho 16.0 | water <= 20
-        {"config": "mixedprod_optchoke20_1",
-        "save": "experiments optchoke/rho16_water20",
-        "description": "Experiment on running the system from optimized initial conditions\n"
+        # Max wells = 5
+        {"config": "20randomwells",
+         "save": "experiments cyclicSPSA/20wells_perturb5",
+         "description": "Experiment on cyclicSPSA for different values of max wells\n"
                         "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
-                        "rho = 16.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["default"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 16.0},
+                        "maxwells = 5\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=5),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {},
         },
-        # Rho 8.0 | water <= 20, but different initial conditions (more gas lift)
-        {"config": "mixedprod_optchoke20_2",
-         "save": "experiments optchoke/rho8_water20_moregaslift",
-         "description": "Experiment on running the system from optimized initial conditions\n"
+        # Max wells = 8
+        {"config": "20randomwells",
+         "save": "experiments cyclicSPSA/20wells_perturb8",
+         "description": "Experiment on cyclicSPSA for different values of max wells\n"
                         "Clips the gradient step size to max 0.2\n"
                         "No new sampling of conditions!\n"
-                        "rho = 8.0 | water <= 20\n"
-                        "Default mixed production well system\n",
-         "start": "Approx. optimal conditions from prior experiment, maxed gas lift",
-         "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["default"],
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 8.0},
+                        "maxwells = 8\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=8),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {},
         },
-        # Rho 4.0 | water <= 15
-        {"config": "mixedprod_optchoke15",
-         "save": "experiments optchoke/rho4_water15",
-         "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 4.0 | water <= 15\n"
-                        "Default mixed production well system\n",
-         "start": "Approx. optimal conditions from prior experiment",
-         "n_wells": 5,
-         "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
-         "hyperparams": HYPERPARAM_PRESETS["default"],
-         "hyperparam_overrides": {"rho": 4.0},
-        },
-        # Rho 8.0 | water <= 15
-        {"config": "mixedprod_optchoke15",
-        "save": "experiments optchoke/rho8_water15",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 8.0 | water <= 15\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
-        },
-        # Rho 12.0 | water <= 15
-        {"config": "mixedprod_optchoke15",
-        "save": "experiments optchoke/rho12_water15",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 12.0 | water <= 15\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["a_bit_strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 12.0},
-        },
-        # Rho 2.0 | water <= 10
-        {"config": "mixedprod_optchoke10",
-        "save": "experiments optchoke/rho2_water10",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                    "Clips the gradient step size to max 0.2\n"
-                    "No new sampling of conditions!\n"
-                    "rho = 2.0 | water <= 10\n"
-                    "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 2.0},
-        },
-        # Rho 4.0 | water <= 10
-        {"config": "mixedprod_optchoke10",
-        "save": "experiments optchoke/rho4_water10",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 4.0 | water <= 10\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 4.0},
-        },
-        # Rho 8.0 | water <= 10
-        {"config": "mixedprod_optchoke10",
-        "save": "experiments optchoke/rho8_water10",
-        "description": "Experiment on running the system from optimized initial conditions\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "rho = 8.0 | water <= 10\n"
-                        "Default mixed production well system\n",
-        "start": "Approx. optimal conditions from prior experiment",
-        "n_wells": 5,
-        "constraints": CONSTRAINT_PRESETS["strict_water"],
-        "hyperparams": HYPERPARAM_PRESETS["default"],
-        "hyperparam_overrides": {"rho": 8.0},
-        },
+        # Max wells = 10
+        {"config": "20randomwells",
+            "save": "experiments cyclicSPSA/20wells_perturb10",
+            "description": "Experiment on cyclicSPSA for different values of max wells\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 10\n"
+                            "20random wells\n",
+            "start": "choke 0.5 | Gas lift 0.0",
+            "n_wells": 20,
+            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=10),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {},
+            },
+        # Max wells = 15
+        {"config": "20randomwells",
+            "save": "experiments cyclicSPSA/20wells_perturb15",
+            "description": "Experiment on cyclicSPSA for different values of max wells\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 15\n"
+                            "20random wells\n",
+            "start": "choke 0.5 | Gas lift 0.0",
+            "n_wells": 20,
+            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=15),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {},
+            },
+        # Max wells = 20
+        {"config": "20randomwells",
+            "save": "experiments cyclicSPSA/20wells_perturb20",
+            "description": "Experiment on cyclicSPSA for different values of max wells\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 20\n"
+                            "20random wells\n",
+            "start": "choke 0.5 | Gas lift 0.0",
+            "n_wells": 20,
+            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=20),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {},
+            },
     ]
 
     # ----------- Main script -----------
