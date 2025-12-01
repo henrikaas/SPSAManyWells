@@ -42,7 +42,7 @@ class SPSAConfig:
             raise ValueError("beta must be in [0, 1]")
         if not (0 <= self.gamma <= 1):
             raise ValueError("gamma must be in [0, 1]")
-        if self.a <= 0 or self.c <= 0 or self.A < 0:
+        if self.a < 0 or self.c <= 0 or self.A < 0:
             raise ValueError("a, c must be > 0 and A >= 0")
         if self.sigma < 0:
             raise ValueError("sigma must be >= 0")
@@ -503,113 +503,15 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 20
-    n_sim = 100
+    n_runs = 10
+    n_sim = 20
 
     experiments = [
         # Experiment on using cyclic SPSA on a 20well system
-        # Max wells = 2
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb2",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 4\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=2),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 3
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb3",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 3\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=3),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 4
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb4",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 4\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=4),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 5
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb5",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 5\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=5),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 8
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb8",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 8\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=8),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 10
-        {"config": "20randomwells",
-            "save": "experiments cyclicSPSA/20wells_perturb10",
-            "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                            "Clips the gradient step size to max 0.2\n"
-                            "No new sampling of conditions!\n"
-                            "maxwells = 10\n"
-                            "20random wells\n",
-            "start": "choke 0.5 | Gas lift 0.0",
-            "n_wells": 20,
-            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=10),
-            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-            "hyperparam_overrides": {},
-            },
-        # Max wells = 15
-        {"config": "20randomwells",
-            "save": "experiments cyclicSPSA/20wells_perturb15",
-            "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                            "Clips the gradient step size to max 0.2\n"
-                            "No new sampling of conditions!\n"
-                            "maxwells = 15\n"
-                            "20random wells\n",
-            "start": "choke 0.5 | Gas lift 0.0",
-            "n_wells": 20,
-            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=15),
-            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-            "hyperparam_overrides": {},
-            },
         # Max wells = 20
         {"config": "20randomwells",
-            "save": "experiments cyclicSPSA/20wells_perturb20",
-            "description": "Experiment on cyclicSPSA for different values of max wells\n"
+            "save": "experiments var_by_vectorsize/20wells_perturb20",
+            "description": "Experiment on how the variance in gradient estimate changes on the size of vector\n"
                             "Clips the gradient step size to max 0.2\n"
                             "No new sampling of conditions!\n"
                             "maxwells = 20\n"
@@ -618,8 +520,177 @@ if __name__ == "__main__":
             "n_wells": 20,
             "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=20),
             "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-            "hyperparam_overrides": {},
+            "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
             },
+        # Max wells = 2
+        {"config": "20randomwells",
+         "save": "experiments var_by_vectorsize/20wells_perturb2",
+         "description": "Experiment on how the vaiance in gradient estimate changes on the size of vector\n"
+                        "Clips the gradient step size to max 0.2\n"
+                        "No new sampling of conditions!\n"
+                        "maxwells = 4\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=2),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # Max wells = 3
+        {"config": "20randomwells",
+         "save": "experiments var_by_vectorsize/20wells_perturb3",
+         "description": "Experiment on how the vaiance in gradient estimate changes on the size of vector\n"
+                        "Clips the gradient step size to max 0.2\n"
+                        "No new sampling of conditions!\n"
+                        "maxwells = 3\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=3),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # Max wells = 4
+        {"config": "20randomwells",
+         "save": "experiments var_by_vectorsize/20wells_perturb4",
+         "description": "Experiment on how the vaiance in gradient estimate changes on the size of vector\n"
+                        "Clips the gradient step size to max 0.2\n"
+                        "No new sampling of conditions!\n"
+                        "maxwells = 4\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=4),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # Max wells = 5
+        {"config": "20randomwells",
+         "save": "experiments var_by_vectorsize/20wells_perturb5",
+         "description": "Experiment on how the vaiance in gradient estimate changes on the size of vector\n"
+                        "Clips the gradient step size to max 0.2\n"
+                        "No new sampling of conditions!\n"
+                        "maxwells = 5\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=5),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # Max wells = 8
+        {"config": "20randomwells",
+         "save": "experiments var_by_vectorsize/20wells_perturb8",
+         "description": "Experiment on how the vaiance in gradient estimate changes on the size of vector\n"
+                        "Clips the gradient step size to max 0.2\n"
+                        "No new sampling of conditions!\n"
+                        "maxwells = 8\n"
+                        "20random wells\n",
+         "start": "choke 0.5 | Gas lift 0.0",
+         "n_wells": 20,
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=8),
+         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+         "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # Max wells = 10
+        {"config": "20randomwells",
+            "save": "experiments var_by_vectorsize/20wells_perturb10",
+            "description": "Experiment on how the vaiance in gradient estimate changes on the size of vector\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 10\n"
+                            "20random wells\n",
+            "start": "choke 0.5 | Gas lift 0.0",
+            "n_wells": 20,
+            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=10),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+            },
+        # Max wells = 15
+        {"config": "20randomwells",
+            "save": "experiments var_by_vectorsize/20wells_perturb15",
+            "description": "Experiment on how the vaiance in gradient estimate changes on the size of vector\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 15\n"
+                            "20random wells\n",
+            "start": "choke 0.5 | Gas lift 0.0",
+            "n_wells": 20,
+            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=15),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+            },
+
+        # 5 well experiments for reference, max wells = 1
+        {"config": "5wells_optchoke",
+            "save": "experiments var_by_vectorsize/5wells_perturb1",
+            "description": "Experiment on how the variance in gradient estimate changes on the size of vector\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 1\n"
+                            "5 wells preoptimized\n",
+            "start": "Optimized production",
+            "n_wells": 5,
+            "constraints": replace(CONSTRAINT_PRESETS["default"], max_wells=1),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # 5 well experiments for reference, max wells = 2
+        {"config": "5wells_optchoke",
+            "save": "experiments var_by_vectorsize/5wells_perturb2",
+            "description": "Experiment on how the variance in gradient estimate changes on the size of vector\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 2\n"
+                            "5 wells preoptimized\n",
+            "start": "Optimized production",
+            "n_wells": 5,
+            "constraints": replace(CONSTRAINT_PRESETS["default"], max_wells=2),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # 5 well experiments for reference, max wells = 3
+        {"config": "5wells_optchoke",
+            "save": "experiments var_by_vectorsize/5wells_perturb3",
+            "description": "Experiment on how the variance in gradient estimate changes on the size of vector\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 3\n"
+                            "5 wells preoptimized\n",
+            "start": "Optimized production",
+            "n_wells": 5,
+            "constraints": replace(CONSTRAINT_PRESETS["default"], max_wells=3),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # 5 well experiments for reference, max wells = 4
+        {"config": "5wells_optchoke",
+            "save": "experiments var_by_vectorsize/5wells_perturb4",
+            "description": "Experiment on how the variance in gradient estimate changes on the size of vector\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 4\n"
+                            "5 wells preoptimized\n",
+            "start": "Optimized production",
+            "n_wells": 5,
+            "constraints": replace(CONSTRAINT_PRESETS["default"], max_wells=4),
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
+        # 5 well experiments for reference, max wells = 5
+        {"config": "5wells_optchoke",
+            "save": "experiments var_by_vectorsize/5wells_perturb5",
+            "description": "Experiment on how the variance in gradient estimate changes on the size of vector\n"
+                            "Clips the gradient step size to max 0.2\n"
+                            "No new sampling of conditions!\n"
+                            "maxwells = 5\n"
+                            "5 wells preoptimized\n",
+            "start": "Optimized production",
+            "n_wells": 5,
+            "constraints": CONSTRAINT_PRESETS["default"],
+            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
+            "hyperparam_overrides": {"a": 0.0, "gamma": 0.0},
+        },
     ]
 
     # ----------- Main script -----------
