@@ -168,7 +168,7 @@ def extract_production_history(data: pd.DataFrame, n_sims: int, init_production:
             w = [0.0] * 3
             for well_idx in range(n_wells):
                 well = well_data.get_group(well_idx)
-                i = iteration[well_idx] # Find the position where we left of in the data
+                i = iteration[well_idx] # Find the position where we left off in the data
 
                 if well["SIM"].iloc[i] == "Unselected Well": # The same simulation is used for all three steps
                     # Oil
