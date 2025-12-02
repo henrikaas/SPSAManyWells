@@ -10,11 +10,8 @@ from dataclasses import dataclass, replace
 import random
 
 from manywells.simulator import SSDFSimulator, SimError, WellProperties, BoundaryConditions
-from scripts.data_generation.well import Well, sample_well
+from scripts.data_generation.well import Well
 import manywells.pvt as pvt
-
-from scripts.data_generation.file_utils import save_well_config_and_data
-from scripts.data_generation.well import Well, sample_well
 
 from spsa.constraints import WellSystemConstraints
 from spsa.gradient import SPSAGradient
@@ -325,7 +322,7 @@ class SPSA:
                         simulators[well_idx],
                     ))
 
-                with mp.Pool(processes=min(mp.cpu_count(), n_sim_wells, 8)) as pool:
+                with mp.Pool(processes=min(mp.cpu_count()-2, n_sim_wells)) as pool:
                     results = pool.starmap(self._parallel_simulation, tasks)
                 
                 for well_idx, x in results:
@@ -384,7 +381,7 @@ class SPSA:
                         simulators[well_idx],
                     ))
                 if len(tasks) > 0:
-                    with mp.Pool(processes=min(mp.cpu_count(), self.n_wells - n_sim_wells, 8)) as pool:
+                    with mp.Pool(processes=min(mp.cpu_count()-2, self.n_wells - n_sim_wells)) as pool:
                         results = pool.starmap(self._parallel_simulation, tasks)
                 else:
                     results = []
@@ -441,7 +438,7 @@ class SPSA:
                         simulators[well_idx],
                     ))
 
-                with mp.Pool(processes=min(mp.cpu_count(), n_sim_wells, 8)) as pool:
+                with mp.Pool(processes=min(mp.cpu_count()-2, n_sim_wells)) as pool:
                     results = pool.starmap(self._parallel_simulation, tasks)
 
                 for well_idx, x in results:
