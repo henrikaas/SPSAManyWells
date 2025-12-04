@@ -235,17 +235,17 @@ class SPSA:
             starting_k (int): Starting iteration number (useful for resuming).
             save_path (str): Path to save the results. If None, results are not saved.
         """
+
+        well_idxs = np.arange(0, self.n_wells)
+
+        simulators = [SSDFSimulator(w.wp, w.bc) for w in self.wells] # Simulator object for each well
+
         n_sim_wells = self.constraints.max_wells
         if self.use_cyclic:
             pert_vectors = self._draw_subvector() # Draw the subvectors for cyclic SPSA
             subvector_k = [0 for _ in range(len(pert_vectors))] # Track iteration number for each subvector, used for the a_k step size calculation
         else:
             pert_vectors = [list(range(self.n_wells))] # Single vector with all wells
-
-        well_idxs = np.arange(0, self.n_wells)
-
-        simulators = [SSDFSimulator(w.wp, w.bc) for w in self.wells] # Simulator object for each well
-
         # Create data point storage
         well_data = [create_sim_results_df() for _ in range(self.n_wells)]
 
