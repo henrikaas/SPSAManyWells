@@ -54,7 +54,7 @@ HYPERPARAM_PRESETS: dict[str, SPSAConfig] = {
     # "fast":    SPSAConfig(a=0.5, c=0.05, A=10,  alpha=0.4, beta=0.7, sigma=0.0, rho=0.0),
 }
 CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
-    "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5),
+    "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5, l_max = 0.2),
     "strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=10.0, max_wells=5),
     "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
     "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
@@ -415,7 +415,7 @@ class SPSA:
                 # Compute the gradient
                 gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions))
                 step_size = gradient * ak
-                np.clip(step_size, -0.2, 0.2, out=step_size) # Clip step size to avoid too large steps
+                step_size = self.constraints.project_step_size(step_size) # Project step size to satisfy constraints
                 step_size[:,1] *=  self.scaling_factor # Scale the gradient for gas lift wells
 
                 # Update decision variables
@@ -515,7 +515,7 @@ if __name__ == "__main__":
                         "20random wells\n",
          "start": "choke 0.5 | Gas lift 0.0",
          "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=2),
+         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, l_max=0.2, l_min=0.01, max_wells=2,),
          "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
          "hyperparam_overrides": {},
         },
