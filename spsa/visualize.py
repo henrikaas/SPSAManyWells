@@ -221,8 +221,17 @@ def extract_decision_vector(data: pd.DataFrame, only_optimizing: bool = False):
 
     for well_idx in range(n_wells):
         well = well_data.get_group(well_idx)
-        u_vals.append(well["CHK"].values)
-        gl_vals.append(well["WGL"].values)
+        u = []
+        gl = []
+        for _, row in well.iterrows():
+            if row['SIM'] == "Unselected Well":
+                u += [row['CHK']]*3
+                gl += [row['WGL']]*3
+            else:
+                u.append(row['CHK'])
+                gl.append(row['WGL'])
+        u_vals.append(u)
+        gl_vals.append(gl)
 
     return u_vals, gl_vals
 
@@ -263,6 +272,7 @@ def plot_spsa_experiment(experiment_name: str,
             
             latest = max(candidates, key=get_iter) # Get the file with the highest iteration number
             df = pd.read_csv(latest)
+            n_sims = get_iter(latest)
         else:
             print(f"No valid data found for Run {run_idx}. Skipping.")
             continue
@@ -273,7 +283,7 @@ def plot_spsa_experiment(experiment_name: str,
 
         # TODO: Check if we need data cleaning
         # df = keep_last_unique_pairs(df, correct_i = 3*i)
-        n_sims = int(len(df) / (2 * min(max_wells, n_wells) + n_wells))
+        # n_sims = int(len(df) / (2 * min(max_wells, n_wells) + n_wells))
         
         oil, gasl, water = extract_production_history(data=df, 
                                                       n_sims=n_sims, 
@@ -308,6 +318,106 @@ def plot_spsa_experiment(experiment_name: str,
     fig.suptitle(experiment_name)
     if save:
         plt.savefig(f"{PLOT_DIR}/{experiment_name}_prod.png", dpi=300, bbox_inches="tight")
+
+    plt.show()
+
+def plot_average_production(experiments: list[Path],
+                            production_types: list[str] | None = ['oil', 'gas-lift', 'water'],
+                            iterations: int = 50,
+                         only_optimizing_iterations: bool = False,
+                         save: bool = False):
+    """
+    Compares a set of given experiments by plotting the average production over all runs.
+    """
+    fig, axs = plt.subplots(len(production_types), 1, figsize=(13.33, 7.5), sharex=True, constrained_layout=True)
+
+    for experiment_dir in experiment_names:
+        info = extract_settings(experiment_dir)
+        config_file = info["config_file"]
+        info.update(INIT_INFO[config_file])
+
+        runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+        n_runs = len(runs)
+
+        n_wells = info["n_wells"]
+
+        oil_prods, gasl_prods, water_prods = [], [], []
+        for run_idx, run in enumerate(runs):
+            print(f"Processing Run {run_idx}/{n_runs-1}...")
+
+            path = Path(f"{run}/iteration_{iterations}/iteration_{iterations}.csv")
+            if not path.exists():
+                print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
+                continue
+
+            df = pd.read_csv(path)
+            n_sims = iterations
+            
+            # Number of wells with check
+            if n_wells != len(df.groupby('ID')):
+                raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
+
+            oil, gasl, water = extract_production_history(data=df, 
+                                                        n_sims=n_sims, 
+                                                        init_production=(info["oil"], info["gaslift"], info["water"]),
+                                                        only_optimizing=only_optimizing_iterations)
+            oil_prods.append(oil)
+            gasl_prods.append(gasl)
+            water_prods.append(water)
+        
+        if "rho" in experiment_dir.name and "water" in experiment_dir.name:
+            label=experiment_dir.name.split("_")[0].replace("rho", "")
+            label = f"ρ = {label}"
+
+        for i, prod_type in enumerate(production_types):
+            if prod_type == 'oil':
+                prod_array = np.array(oil_prods)
+                avg_prod = np.mean(prod_array, axis=0)
+                axs[i].plot(avg_prod, label=label if i == 0 else "", alpha=0.8)
+            elif prod_type == 'gas-lift':
+                prod_array = np.array(gasl_prods)
+                avg_prod = np.mean(prod_array, axis=0)
+                axs[i].plot(avg_prod, label=label if i == 0 else "", alpha=0.8)
+            elif prod_type == 'water':
+                prod_array = np.array(water_prods)
+                avg_prod = np.mean(prod_array, axis=0)
+                axs[i].plot(avg_prod, label=label if i == 0 else "", alpha=0.8)
+
+    if "oil" in production_types:
+        axs[production_types.index("oil")].set_ylim(bottom=62, top=70) # These needs to be set manually
+    if "gas-lift" in production_types:
+        axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=11) # These needs to be set manually
+    if "water" in production_types:
+        axs[production_types.index("water")].set_ylim(bottom=19, top=22) # These needs to be set manually
+
+
+    for i, prod_type in enumerate(production_types):
+
+        ymin, ymax = axs[i].get_ylim()
+        if prod_type == 'gas-lift':
+            bound = info["constraints"]["comb_gl_max"]
+            axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25) # Visualize combined gas lift max
+            axs[i].axhspan(bound, ymax, facecolor="rosybrown", alpha=0.3, zorder=0)
+        elif prod_type == 'water':
+            bound = info["constraints"]["wat_max"]
+            axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25) # Visualize water production max
+            axs[i].axhspan(bound, ymax, facecolor="rosybrown", alpha=0.3, zorder=0)
+        axs[i].set_title(f'{prod_type.capitalize()} Production')
+    axs[len(production_types)-1].set_xlabel('Iterations')
+    axs[len(production_types)-1].set_xlim(left=0)
+            
+
+    # =========================
+
+    for ax in axs:
+        # ax.legend()
+        ax.grid(True)
+
+    # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
+    # fig.suptitle(experiment_name)
+    fig.legend()
+    if save:
+        plt.savefig(f"{experiments[0].parent.name}_avgprod.png", dpi=300, bbox_inches="tight")
 
     plt.show()
 
@@ -414,7 +524,7 @@ def print_production_sequence(experiment_name: str):
         # Find all CSVs that match the pattern iteration_X/iteration_X.csv
         candidates = [
             p for p in run.glob("iteration_*/iteration_*.csv")
-            if p.stem == p.parent.name  # ensures iteration_50/iteration_50.csv
+            if p.stem == p.parent.name 
         ]
 
         if candidates:
@@ -424,6 +534,7 @@ def print_production_sequence(experiment_name: str):
             
             latest = max(candidates, key=get_iter) # Get the file with the highest iteration number
             df = pd.read_csv(latest)
+            n_sims = get_iter(latest)
         else:
             print(f"No valid data found for Run {run_idx}. Skipping.")
             continue
@@ -431,8 +542,6 @@ def print_production_sequence(experiment_name: str):
         # Number of wells with check
         if n_wells != len(df.groupby('ID')):
             raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
-        
-        n_sims = int(len(df) / (2 * min(max_wells, n_wells) + n_wells))
         
         oil, gasl, water = extract_production_history(data=df, 
                                                       n_sims=n_sims, 
@@ -660,7 +769,7 @@ def plot_step_size(experiment_name: str, n_runs: int | None = 10, iteration: int
     ax.plot(iterations, smooth_mean, color='grey', linewidth=2.5, label='Average Step Size')
 
     # --- Plot one example run with YlOrRd gradient ---
-    example_run = step_sizes_for_all_runs[9]  # or choose another index
+    example_run = step_sizes_for_all_runs[0]  # or choose another index
     cmap = plt.colormaps['YlOrRd']
     n_points = len(example_run)
 
@@ -687,7 +796,6 @@ def plot_step_size(experiment_name: str, n_runs: int | None = 10, iteration: int
         plt.savefig(f"{PLOT_DIR}/{experiment_name}_stepsize.png", dpi=300, bbox_inches="tight")
 
     plt.show()
-
 
 def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | None = None, sigma: float = 0.0, normalize: str = "None", objective: list[str] = ["WOIL"], save: bool = False):
     """
@@ -911,10 +1019,10 @@ def plot_mean_function_landscape(
             plt.show()
 
 if __name__ == "__main__":
-    plot_spsa_experiment(experiment_name="experiments maxwells/20wells_perturb10", only_optimizing_iterations=True)
+    # plot_spsa_experiment(experiment_name="experiments maxwells/20wells_perturb10", only_optimizing_iterations=True)
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
-    # print_production_sequence(experiment_name="experiments fixed gradient gain sequence/rho1_water10")
+    # print_production_sequence(experiment_name="experiments cyclicSPSA/20wells_perturb8")
     # plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
     # plot_multiple_function_landscapes(experiment_name="grid evaluation", wells=[2,7,11,13,25,37,8], sigma=1.0, normalize="local", objective=["WWAT"], save=True)
@@ -922,7 +1030,7 @@ if __name__ == "__main__":
 
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
-    # main_exp = "experiments rho v3" # Change this as needed
+    main_exp = "experiments rho v3" # Change this as needed
     # main_exp = "experiments gl constraints"
     # main_exp = "experiments maxwells"
     # main_exp = "experiments rho on augmented-lagrangian"
@@ -930,10 +1038,18 @@ if __name__ == "__main__":
     # main_exp = "experiments fixed gradient gain sequence"
     # main_exp = "experiments optchoke"
     # main_exp = "experiments scaling factor"
+    # main_exp = "experiments cyclicSPSA"
 
-    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    # experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
     # for exp in experiments:
     #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}")
+    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
+    #     plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
+    #     plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
+    #     plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
+    #     plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
+    
+    experiments = [e for e in main_path.iterdir() if (e.is_dir() and "20" in e.name)]
+    plot_average_production(experiment_names=experiments, only_optimizing_iterations=True, production_types=["oil", "water"],save=False)
