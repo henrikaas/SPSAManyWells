@@ -44,6 +44,10 @@ class WellSystemConstraints:
     # # Number of moves
     # max_moves: int
     max_wells: int
+    
+    l_max: float | None = None
+    l_min: float = 0.0
+
 
     # Coupling constraints that is enforced by penalty and lagrangian methods
     penalty_constraints: dict[str, float] = field(init=False)
@@ -68,6 +72,13 @@ class WellSystemConstraints:
         # Water
         if self.wat_max <= 0:
             raise ValueError(f"wat_max must be > 0, got {self.wat_max}.")
+        
+        # Movement lengths
+        if self.l_min < 0:
+            raise ValueError(f"g_min must be >= 0, got {self.l_min}.")
+        if self.l_max:
+            if self.l_max <= self.l_min:
+                raise ValueError(f"g_max must be > g_min, got g_max={self.l_max}, g_min={self.l_min}.")
 
         # Wells
         if self.max_wells <= 0:
@@ -128,4 +139,19 @@ class WellSystemConstraints:
             np.ndarray: Decision vector with enforced constraints.
         """
         return np.clip(decision_vector, [self.u_min, self.gl_min], [self.u_max, self.gl_max])
+    
+    def project_step_size(self, step_size: np.ndarray) -> np.ndarray:
+        """
+        Project the step size to ensure that it does not violate the constraints.
 
+        Args:
+            step_size (np.ndarray): Array of step sizes for each well.
+
+        Returns:
+            np.ndarray: Projected step sizes satisfying the constraints.
+        """
+        if self.l_max is not None:
+            np.clip(step_size, -self.l_max, self.l_max, out=step_size) # Clip step size to avoid too large steps
+        step_size[np.abs(step_size) < self.l_min] = self.l_min * np.sign(step_size[np.abs(step_size) < 0.01]) # Set minimum absolute value
+
+        return step_size

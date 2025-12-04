@@ -54,7 +54,7 @@ HYPERPARAM_PRESETS: dict[str, SPSAConfig] = {
     # "fast":    SPSAConfig(a=0.5, c=0.05, A=10,  alpha=0.4, beta=0.7, sigma=0.0, rho=0.0),
 }
 CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
-    "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5),
+    "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5, l_max = 0.2),
     "strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=10.0, max_wells=5),
     "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
     "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
@@ -217,7 +217,7 @@ class SPSA:
             tuple[int, np.ndarray | None]: A tuple containing the well index and the simulation result.
                                            If the simulation fails, the result is None.
         """
-        if well.bc.u <= 0.025:
+        if well.bc.u <= 0.05:
             x = [0.0] * ((sim.n_cells + 1) * sim.dim_x) # All zeros if choke is fully closed
             return well_idx, x
         try:
@@ -415,7 +415,7 @@ class SPSA:
                 # Compute the gradient
                 gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions))
                 step_size = gradient * ak
-                np.clip(step_size, -0.2, 0.2, out=step_size) # Clip step size to avoid too large steps
+                step_size = self.constraints.project_step_size(step_size) # Project step size to satisfy constraints
                 step_size[:,1] *=  self.scaling_factor # Scale the gradient for gas lift wells
 
                 # Update decision variables
@@ -503,121 +503,33 @@ if __name__ == "__main__":
     n_runs = 20
     n_sim = 100
 
+    waters = [20.0, 15.0, 10.0]
+    rhos = [1.0, 2.0, 4.0, 8.0, 16.0]
+
     experiments = [
-        # Experiment on using cyclic SPSA on a 20well system
-        # Max wells = 2
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb2",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 4\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=2),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 3
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb3",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 3\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=3),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 4
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb4",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 4\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=4),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 5
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb5",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 5\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=5),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 8
-        {"config": "20randomwells",
-         "save": "experiments cyclicSPSA/20wells_perturb8",
-         "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                        "Clips the gradient step size to max 0.2\n"
-                        "No new sampling of conditions!\n"
-                        "maxwells = 8\n"
-                        "20random wells\n",
-         "start": "choke 0.5 | Gas lift 0.0",
-         "n_wells": 20,
-         "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=8),
-         "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-         "hyperparam_overrides": {},
-        },
-        # Max wells = 10
-        {"config": "20randomwells",
-            "save": "experiments cyclicSPSA/20wells_perturb10",
-            "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                            "Clips the gradient step size to max 0.2\n"
-                            "No new sampling of conditions!\n"
-                            "maxwells = 10\n"
-                            "20random wells\n",
-            "start": "choke 0.5 | Gas lift 0.0",
-            "n_wells": 20,
-            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=10),
-            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-            "hyperparam_overrides": {},
-            },
-        # Max wells = 15
-        {"config": "20randomwells",
-            "save": "experiments cyclicSPSA/20wells_perturb15",
-            "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                            "Clips the gradient step size to max 0.2\n"
-                            "No new sampling of conditions!\n"
-                            "maxwells = 15\n"
-                            "20random wells\n",
-            "start": "choke 0.5 | Gas lift 0.0",
-            "n_wells": 20,
-            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=15),
-            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-            "hyperparam_overrides": {},
-            },
-        # Max wells = 20
-        {"config": "20randomwells",
-            "save": "experiments cyclicSPSA/20wells_perturb20",
-            "description": "Experiment on cyclicSPSA for different values of max wells\n"
-                            "Clips the gradient step size to max 0.2\n"
-                            "No new sampling of conditions!\n"
-                            "maxwells = 20\n"
-                            "20random wells\n",
-            "start": "choke 0.5 | Gas lift 0.0",
-            "n_wells": 20,
-            "constraints": WellSystemConstraints(gl_max=5.0, comb_gl_max=15.0, wat_max=225, max_wells=20),
-            "hyperparams": HYPERPARAM_PRESETS["slower_ak"],
-            "hyperparam_overrides": {},
-            },
-    ]
+    {"config": "mixedprod_choke50",
+    "save": f"experiments rho final/rho{rho}_water{water}",
+    "description": (
+        "Experiment on different rho values on different strictness on water constraint\n"
+        f"rho = {rho} | water <= {water}\n"
+        "Default mixed production well system\n"
+    ),
+    "start": "Choke: 0.5 | Gas lift: 0.0",
+    "n_wells": 5,
+    # assuming wat_max controls the water <= X constraint:
+    "constraints": replace(
+        CONSTRAINT_PRESETS["default"],
+        wat_max=water,
+        l_max=None,
+    ),
+    "hyperparams": HYPERPARAM_PRESETS["default"],
+    "hyperparam_overrides": {
+        "rho": rho,
+    },
+    }
+    for water in waters
+    for rho in rhos
+]
 
     # ----------- Main script -----------
     work_dir, results_dir = create_dirs(experiments, n_runs)
