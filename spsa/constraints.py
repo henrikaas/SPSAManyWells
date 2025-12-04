@@ -76,8 +76,9 @@ class WellSystemConstraints:
         # Movement lengths
         if self.l_min < 0:
             raise ValueError(f"g_min must be >= 0, got {self.l_min}.")
-        if self.l_max <= self.l_min:
-            raise ValueError(f"g_max must be > g_min, got g_max={self.l_max}, g_min={self.l_min}.")
+        if self.l_max:
+            if self.l_max <= self.l_min:
+                raise ValueError(f"g_max must be > g_min, got g_max={self.l_max}, g_min={self.l_min}.")
 
         # Wells
         if self.max_wells <= 0:
