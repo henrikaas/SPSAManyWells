@@ -152,6 +152,6 @@ class WellSystemConstraints:
         """
         if self.l_max is not None:
             np.clip(step_size, -self.l_max, self.l_max, out=step_size) # Clip step size to avoid too large steps
-        step_size[np.abs(step_size) < self.l_min] = self.l_min * np.sign(step_size[np.abs(step_size) < 0.01]) # Set minimum absolute value
+        step_size = np.sign(step_size) * np.maximum(np.abs(step_size), self.l_min) # Set minimum absolute value
 
         return step_size

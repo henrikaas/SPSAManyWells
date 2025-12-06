@@ -330,8 +330,9 @@ def plot_average_production(experiments: list[Path],
     Compares a set of given experiments by plotting the average production over all runs.
     """
     fig, axs = plt.subplots(len(production_types), 1, figsize=(13.33, 7.5), sharex=True, constrained_layout=True)
+    experiments = sorted(experiments)
 
-    for experiment_dir in experiment_names:
+    for experiment_dir in experiments:
         info = extract_settings(experiment_dir)
         config_file = info["config_file"]
         info.update(INIT_INFO[config_file])
@@ -385,26 +386,46 @@ def plot_average_production(experiments: list[Path],
 
     if "oil" in production_types:
         axs[production_types.index("oil")].set_ylim(bottom=62, top=70) # These needs to be set manually
+
+        axs[production_types.index("oil")].plot(0, info["oil"],
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
     if "gas-lift" in production_types:
         axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=11) # These needs to be set manually
+        axs[production_types.index("gas-lift")].plot(0, info["gaslift"],
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
     if "water" in production_types:
         axs[production_types.index("water")].set_ylim(bottom=19, top=22) # These needs to be set manually
-
+        axs[production_types.index("water")].plot(0, info["water"],
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
 
     for i, prod_type in enumerate(production_types):
 
         ymin, ymax = axs[i].get_ylim()
         if prod_type == 'gas-lift':
             bound = info["constraints"]["comb_gl_max"]
-            axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25) # Visualize combined gas lift max
+            axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25, label="Gas-Lift Boundary") # Visualize combined gas lift max
             axs[i].axhspan(bound, ymax, facecolor="rosybrown", alpha=0.3, zorder=0)
+            axs[i].legend(loc="lower right")
         elif prod_type == 'water':
             bound = info["constraints"]["wat_max"]
-            axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25) # Visualize water production max
+            axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25, label="Water Production Boundary") # Visualize water production max
             axs[i].axhspan(bound, ymax, facecolor="rosybrown", alpha=0.3, zorder=0)
+            axs[i].legend(loc="lower right")
         axs[i].set_title(f'{prod_type.capitalize()} Production')
     axs[len(production_types)-1].set_xlabel('Iterations')
-    axs[len(production_types)-1].set_xlim(left=0)
+    axs[len(production_types)-1].set_xlim(left=-1, right=iterations + 1)
             
 
     # =========================
@@ -415,7 +436,7 @@ def plot_average_production(experiments: list[Path],
 
     # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
     # fig.suptitle(experiment_name)
-    fig.legend()
+    axs[0].legend(loc="lower right")
     if save:
         plt.savefig(f"{experiments[0].parent.name}_avgprod.png", dpi=300, bbox_inches="tight")
 
@@ -1052,4 +1073,4 @@ if __name__ == "__main__":
     #     plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
     
     experiments = [e for e in main_path.iterdir() if (e.is_dir() and "20" in e.name)]
-    plot_average_production(experiment_names=experiments, only_optimizing_iterations=True, production_types=["oil", "water"],save=False)
+    plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"],save=False)
