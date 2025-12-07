@@ -501,16 +501,16 @@ class SPSA:
 
 if __name__ == "__main__":
     n_runs = 20
-    n_sim = 100
+    n_sim = 50
 
     waters = [20.0, 15.0, 10.0]
     rhos = [1.0, 2.0, 4.0, 8.0, 16.0]
 
     experiments = [
     {"config": "mixedprod_choke50",
-    "save": f"experiments rho final/rho{rho}_water{water}",
+    "save": f"experiments auglagrangian/rho{rho}_water{water}",
     "description": (
-        "Experiment on different rho values on different strictness on water constraint\n"
+        "Experiment with varying rho using augmented lagrangian on different strictness on water constraint\n"
         f"rho = {rho} | water <= {water}\n"
         "Default mixed production well system\n"
     ),
@@ -525,6 +525,7 @@ if __name__ == "__main__":
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
         "rho": rho,
+        "b": 0.7
     },
     }
     for water in waters

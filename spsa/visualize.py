@@ -1051,8 +1051,8 @@ if __name__ == "__main__":
 
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
-    main_exp = "experiments rho v3" # Change this as needed
-    # main_exp = "experiments gl constraints"
+    # main_exp = "experiments rho final" # Change this as needed
+    main_exp = "experiments gl constraints"
     # main_exp = "experiments maxwells"
     # main_exp = "experiments rho on augmented-lagrangian"
     # main_exp = "experiments rho max stepsize"
@@ -1064,13 +1064,15 @@ if __name__ == "__main__":
     main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
     experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
-    # for exp in experiments:
-    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+    for exp in experiments:
+        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
     #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
     #     plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
     #     plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
     #     plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
     #     plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
     
-    experiments = [e for e in main_path.iterdir() if (e.is_dir() and "20" in e.name)]
-    plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"],save=False)
+
+    #Average production across experiments in a main folder
+    # experiments = [e for e in main_path.iterdir() if (e.is_dir() and "20" in e.name)]
+    # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"],save=False)
