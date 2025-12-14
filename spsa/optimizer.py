@@ -99,10 +99,15 @@ class SPSA:
         if constraints.max_wells > self.n_wells:
             print(f"Warning: max_wells ({constraints.max_wells}) > number of wells ({self.n_wells}). Setting max_wells = {self.n_wells}.")
             constraints = replace(constraints, max_wells=self.n_wells)
+        if self.n_wells // constraints.max_wells != 0:
+            raise SimError("Size of perturbation vector must exactly add up to the total number of wells.")
         self.constraints: WellSystemConstraints = constraints.validate()
 
         self.scaling_factor = min(10, self.constraints.gl_max) # Max value to avoid too large perturbations when gl_max constraint is relaxed
         self.use_cyclic = True if self.constraints.max_wells < self.n_wells else False # Use cyclic SPSA if max_wells constraint is active
+
+        if self.use_cyclic:
+            self.ak_scaling = np.sqrt(self.n_wells / self.constraints.max_wells)
 
         # Initialize gradient object
         use_penalty = True if self.hyperparams.rho > 0 else False
@@ -414,7 +419,7 @@ class SPSA:
 
                 # Compute the gradient
                 gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions))
-                step_size = gradient * ak
+                step_size = gradient * ak * self.ak_scaling
                 step_size = self.constraints.project_step_size(step_size) # Project step size to satisfy constraints
                 step_size[:,1] *=  self.scaling_factor # Scale the gradient for gas lift wells
 
