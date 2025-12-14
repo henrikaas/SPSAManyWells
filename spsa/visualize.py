@@ -4,6 +4,7 @@ Different functions for visualizing SPSA results.
 import os
 import re
 from pathlib import Path
+import copy
 
 import numpy as np
 import pandas as pd
@@ -16,6 +17,9 @@ from matplotlib.lines import Line2D
 from matplotlib import colors
 from scipy.ndimage import gaussian_filter
 from scipy.ndimage import gaussian_filter1d
+
+from gradient import SPSAGradient
+from constraints import WellSystemConstraints
 
 DATA_DIR = os.environ["RESULTS_DIR"]
 PLOT_DIR = os.environ["PLOT_DIR"]
@@ -105,6 +109,7 @@ def extract_settings(experiment_dir: Path) -> dict:
     n_sims = re.search(r"Attempted number of iterations:\s*(\d+)", text)
     wells = re.search(r"Number of wells:\s*(\d+)", text)
     constraints_block = re.search(r"Constraints:\s*(.+?)(?:\n\s*\n|$)", text, re.S)
+    params_block = re.search(r"SPSA hyperparametres:\s*(.+?)(?:\n\s*\n|$)", text, re.S)
 
     cfg = re.search(r"config file:\s*([^\s#]+)", text, re.IGNORECASE)
 
@@ -119,6 +124,13 @@ def extract_settings(experiment_dir: Path) -> dict:
         for line in constraints_block.group(1).strip().splitlines():
             k, v = [x.strip() for x in line.split(":", 1)]
             data["constraints"][k] = float(v)
+    if params_block:
+        for line in params_block.group(1).strip().splitlines():
+            k, v = [x.strip() for x in line.split(":", 1)]
+            try:
+                data[k] = float(v)
+            except ValueError:
+                data[k] = v
     return data
 
 def list_iterations(experiment_dir: Path) -> list[int]:
@@ -234,7 +246,6 @@ def extract_decision_vector(data: pd.DataFrame, only_optimizing: bool = False):
         gl_vals.append(gl)
 
     return u_vals, gl_vals
-
 # -------------- Main plotting functions -----------------
 
 def plot_spsa_experiment(experiment_name: str,
@@ -330,7 +341,7 @@ def plot_average_production(experiments: list[Path],
     Compares a set of given experiments by plotting the average production over all runs.
     """
     fig, axs = plt.subplots(len(production_types), 1, figsize=(13.33, 7.5), sharex=True, constrained_layout=True)
-    experiments = sorted(experiments)
+    experiments = sorted(experiments, key=lambda e: float(re.search(r'rho(\d+(?:\.\d+)?)', e.name).group(1)))
 
     for experiment_dir in experiments:
         info = extract_settings(experiment_dir)
@@ -344,8 +355,6 @@ def plot_average_production(experiments: list[Path],
 
         oil_prods, gasl_prods, water_prods = [], [], []
         for run_idx, run in enumerate(runs):
-            print(f"Processing Run {run_idx}/{n_runs-1}...")
-
             path = Path(f"{run}/iteration_{iterations}/iteration_{iterations}.csv")
             if not path.exists():
                 print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
@@ -375,17 +384,20 @@ def plot_average_production(experiments: list[Path],
                 prod_array = np.array(oil_prods)
                 avg_prod = np.mean(prod_array, axis=0)
                 axs[i].plot(avg_prod, label=label if i == 0 else "", alpha=0.8)
+                print(f"Final average oil production for {experiment_dir.name}: {avg_prod[-1]:.2f}")
             elif prod_type == 'gas-lift':
                 prod_array = np.array(gasl_prods)
                 avg_prod = np.mean(prod_array, axis=0)
                 axs[i].plot(avg_prod, label=label if i == 0 else "", alpha=0.8)
+                print(f"Final average gas-lift production for {experiment_dir.name}: {avg_prod[-1]:.2f}")
             elif prod_type == 'water':
                 prod_array = np.array(water_prods)
                 avg_prod = np.mean(prod_array, axis=0)
                 axs[i].plot(avg_prod, label=label if i == 0 else "", alpha=0.8)
-
+                print(f"Final average water production for {experiment_dir.name}: {avg_prod[-1]:.2f}")
     if "oil" in production_types:
-        axs[production_types.index("oil")].set_ylim(bottom=62, top=70) # These needs to be set manually
+        axs[production_types.index("oil")].set_ylim(bottom=62, top=70) # These needs to be set manually, water = 20
+        # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
 
         axs[production_types.index("oil")].plot(0, info["oil"],
             marker='o',
@@ -395,6 +407,7 @@ def plot_average_production(experiments: list[Path],
             label="_nolegend_")
     if "gas-lift" in production_types:
         axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=11) # These needs to be set manually
+
         axs[production_types.index("gas-lift")].plot(0, info["gaslift"],
             marker='o',
             markersize=3,
@@ -402,7 +415,9 @@ def plot_average_production(experiments: list[Path],
             alpha=0.6,
             label="_nolegend_")
     if "water" in production_types:
-        axs[production_types.index("water")].set_ylim(bottom=19, top=22) # These needs to be set manually
+        axs[production_types.index("water")].set_ylim(bottom=18.5, top=21.5) # These needs to be set manually, water = 20
+        # axs[production_types.index("water")].set_ylim(bottom=5, top=21) # These needs to be set manually, water = 15
+
         axs[production_types.index("water")].plot(0, info["water"],
             marker='o',
             markersize=3,
@@ -438,7 +453,9 @@ def plot_average_production(experiments: list[Path],
     # fig.suptitle(experiment_name)
     axs[0].legend(loc="lower right")
     if save:
-        plt.savefig(f"{experiments[0].parent.name}_avgprod.png", dpi=300, bbox_inches="tight")
+        save_dir = f"{PLOT_DIR}/{experiments[0].parent.name}"
+        os.makedirs(save_dir, exist_ok=True)
+        plt.savefig(f"{save_dir}/avgprod.png", dpi=300, bbox_inches="tight")
 
     plt.show()
 
@@ -1038,6 +1055,122 @@ def plot_mean_function_landscape(
                 os.makedirs(save_dir, exist_ok=True)
                 plt.savefig(f"{save_dir}/mean_landscape_{'_'.join(objective)}.png", dpi=300, bbox_inches="tight")
             plt.show()
+    
+def plot_penalty_terms(experiments: list[Path], 
+                       iterations: int = 50,
+                       only_optimizing_iterations: bool = True,
+                       save: bool = False):
+    """
+    Plots the value of the penalty term across multiple experiments.
+    Each experiment is averaged over its runs.
+    """
+    def calculate_penalty(water_prod, gradient: SPSAGradient, only_optimizing: bool = True):
+        penalties = []
+        if not only_optimizing:
+            for i in range(len(water_prod)):
+                violation = gradient.constraints.get_violations({"water": water_prod[i]})
+                penalty = gradient._compute_penalty(violation)
+                penalties.append(penalty)
+        else:
+            for i in range(2, len(water_prod), 3):
+                violation = gradient.constraints.get_violations({"water": water_prod[i]})
+                penalty = gradient._compute_penalty(violation)
+                penalties.append(penalty)
+
+        return penalties
+
+    def calculate_lagragrian_term(water_prod, gradient: SPSAGradient, b: float, beta: float, only_optimizing: bool = True):
+        lagr_penalties = []
+        for i in range(0, len(water_prod), 3):
+            gradient.bk = b / (1 + (i//3))**beta  # Update bk based on iteration
+            if not only_optimizing:
+                lagr_penalties.append(gradient._compute_lagrangian(
+                                        gradient.constraints.get_violations({"water": water_prod[i]})))
+                lagr_penalties.append(gradient._compute_lagrangian(
+                                        gradient.constraints.get_violations({"water": water_prod[i+1]})))
+            lagr_penalties.append(gradient._compute_lagrangian(
+                                    gradient.constraints.get_violations({"water": water_prod[i+2]})))  # Only consider the resulting state
+            
+            # Update multipliers after each full iteration
+            gradient.update_lambdas({"water": water_prod[i]}, {"water": water_prod[i+1]})
+        return lagr_penalties
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for experiment_dir in experiments:
+        info = extract_settings(experiment_dir)
+        config_file = info["config_file"]
+        info.update(INIT_INFO[config_file])
+
+        constraints = WellSystemConstraints(**info["constraints"])
+        gradient = SPSAGradient(constraints=constraints,
+                                use_penalty=True if info["rho"] > 0.0 else False,
+                                use_lagrangian=True if info["b"] > 0.0 else False,
+                                rho=info["rho"],
+                                bk=info["b"])
+
+        runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+        n_runs = len(runs)
+
+        penalties = []
+        lagrangians = []
+        all_terms = []
+        for run_idx, run in enumerate(runs):
+            print(f"Processing Run {run_idx}/{n_runs-1}...")
+            path = Path(f"{run}/iteration_{iterations}/iteration_{iterations}.csv")
+            if not path.exists():
+                print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
+                continue
+
+            df = pd.read_csv(path)
+            n_sims = iterations
+
+            oil, gasl, water = extract_production_history(data=df, 
+                                                        n_sims=n_sims, 
+                                                        init_production=(info["oil"], info["gaslift"], info["water"]),
+                                                        only_optimizing=False)
+
+            # Compute penalty terms for each run
+            water = water[1:] # Exclude initial production
+
+            penalty = calculate_penalty(water, copy.deepcopy(gradient), only_optimizing=only_optimizing_iterations)
+            penalties.append(penalty)
+            
+            if gradient.use_lagrangian:
+                lagrangian = calculate_lagragrian_term(water, 
+                                                   copy.deepcopy(gradient), 
+                                                   b=info["b"], 
+                                                   beta=info["beta"], 
+                                                   only_optimizing=only_optimizing_iterations)
+            
+                lagrangians.append(lagrangian)
+
+        all_penalties = np.array(penalties)
+        mean_penalties = np.mean(all_penalties, axis=0)
+        if gradient.use_lagrangian:
+            all_lagrangians = np.array(lagrangians)
+            mean_lagrangians = np.mean(all_lagrangians, axis=0)
+
+        if gradient.use_lagrangian:
+            all_terms = [p + l for p, l in zip(mean_penalties, mean_lagrangians)]
+
+        ax.plot(mean_penalties, label=experiment_dir.name)
+        if gradient.use_lagrangian:
+            ax.plot(mean_lagrangians, label=f"{experiment_dir.name} (Lagrangian)", linestyle='--')
+            ax.plot(all_terms, label=f"{experiment_dir.name} (Total)", linestyle=':')
+
+    ax.set_xlabel("Iterations")
+    ax.set_ylabel("Penalty Term")
+    ax.set_title("Penalty Terms Across Experiments")
+    ax.legend()
+    plt.tight_layout()
+
+    if save:
+        save_dir = f"{PLOT_DIR}/penalty_terms"
+        os.makedirs(save_dir, exist_ok=True)
+        plt.savefig(f"{save_dir}/penalty_terms.png", dpi=300, bbox_inches="tight")
+
+    plt.show()
 
 if __name__ == "__main__":
     # plot_spsa_experiment(experiment_name="experiments maxwells/20wells_perturb10", only_optimizing_iterations=True)
@@ -1052,9 +1185,9 @@ if __name__ == "__main__":
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
     # main_exp = "experiments rho final" # Change this as needed
-    main_exp = "experiments gl constraints"
+    # main_exp = "experiments gl constraints"
     # main_exp = "experiments maxwells"
-    # main_exp = "experiments rho on augmented-lagrangian"
+    main_exp = "experiments auglagrangian"
     # main_exp = "experiments rho max stepsize"
     # main_exp = "experiments fixed gradient gain sequence"
     # main_exp = "experiments optchoke"
@@ -1062,17 +1195,29 @@ if __name__ == "__main__":
     # main_exp = "experiments cyclicSPSA"
 
     main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    # experiments = [e for e in main_path.iterdir() if e.is_dir() and "water20" in e.name]
 
-    for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+    # for exp in experiments:
+    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
     #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
-    #     plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
-    #     plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
-    #     plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
-    #     plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
+        # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
+        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
+        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
+        # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
     
 
-    #Average production across experiments in a main folder
+    # Average production across experiments in a main folder
     # experiments = [e for e in main_path.iterdir() if (e.is_dir() and "20" in e.name)]
-    # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"],save=False)
+    # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
+
+    # Compare penalty terms across experiments in different main experiments
+    main_experiments = [
+        "experiments auglagrangian",
+        "experiments rho final",
+    ]
+    main_paths = [Path(f"{os.environ['RESULTS_DIR']}/{me}") for me in main_experiments]
+    experiments = []
+    for main_path in main_paths:
+        exps = [e for e in main_path.iterdir() if e.is_dir() and "rho1" in e.name and "water20" in e.name]
+        experiments.extend(exps)
+    plot_penalty_terms(experiments)

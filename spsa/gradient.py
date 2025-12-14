@@ -80,7 +80,6 @@ class SPSAGradient:
         penalty = (self.rho / 2) * np.linalg.norm(np.maximum(0, violations)) ** 2
         return penalty
 
-    # TODO: Implement Lagrangian method
     def _compute_lagrangian(self, violations):
         """
         Compute Lagrangian term for constraint violations.
@@ -101,9 +100,10 @@ class SPSAGradient:
         neg_violations = self.constraints.get_violations(y_neg)
 
         violations = np.maximum(np.array(pos_violations), np.array(neg_violations))
-        
+
+        v = np.maximum(0, violations)
         for i, key in enumerate(self.lambdas.keys()):
-            self.lambdas[key] += self.bk * max(0, violations[i])        
+            self.lambdas[key] += self.bk * max(0, v[i])        
 
         
         
