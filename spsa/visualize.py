@@ -70,6 +70,18 @@ INIT_INFO: dict = {
         "gaslift": 0.0,
         "opt_prod": 68,
     },
+    "40randomwells": {
+        "oil": 485,
+        "water": 205.0,
+        "gaslift": 0.0,
+        # "opt_prod": 130 # TODO: dont know yet
+    },
+    "12randomwells": {
+        "oil": 145.0,
+        "water": 60.0,
+        "gaslift": 0.0,
+        # "opt_prod": 130 # TODO: dont know yet
+    },
 }
 
 
@@ -310,16 +322,16 @@ def plot_spsa_experiment(experiment_name: str,
         axs[1].plot(len(gasl)-1, gasl[-1], '|', color='green', markersize=4) # Mark final point
         axs[2].plot(len(water)-1, water[-1], '|', color='blue', markersize=4) # Mark final point
 
-    # axs[0].set_ylim(top=70)
-    # axs[1].set_ylim(top=10, bottom=0)
-    # axs[2].set_ylim(top=78, bottom=38)
+    axs[0].set_ylim(top=190)
+    axs[1].set_ylim(top=40, bottom=0)
+    axs[2].set_ylim(top=80, bottom=20)
     axs[0].set_title('Oil Production')
     axs[1].set_title('Gas Lift')
     axs[2].set_title('Water Production')
     axs[2].set_xlabel('Simulation Steps')
 
-    axs[1].axhline(y=info["constraints"]["comb_gl_max"], color='k', linestyle='--', linewidth=1.5) # Visualize combined gas lift max
-    axs[2].axhline(y=info["constraints"]["wat_max"], color='k', linestyle='--', linewidth=1.5) # Visualize water production max
+    # axs[1].axhline(y=info["constraints"]["comb_gl_max"], color='k', linestyle='--', linewidth=1.5) # Visualize combined gas lift max
+    # axs[2].axhline(y=info["constraints"]["wat_max"], color='k', linestyle='--', linewidth=1.5) # Visualize water production max
 
     for ax in axs:
         # ax.legend()
@@ -541,6 +553,96 @@ def plot_decision_vector_series(experiment_name: str, save_each: bool = False, s
 
     for it in iters:
         plot_decision_vector(experiment_name, save=save_each, iteration=it)
+
+def print_production_evolution(main_path: str, well_tbh: float | str):
+    """
+    For each subexperiment inside a main experiment folder, print the average
+    initial and final production for a specific well (identified by its TBH)
+    across all runs. The output is a table with subexperiments as rows and the
+    six requested production metrics as columns.
+    """
+    subexperiments = sorted([p for p in main_path.iterdir() if p.is_dir()])
+    if not subexperiments:
+        print(f"No subexperiments found in {main_path}")
+        return
+
+    try:
+        target_tbh = float(well_tbh)
+    except (TypeError, ValueError):
+        target_tbh = None
+
+    def _select_well(df: pd.DataFrame) -> pd.DataFrame:
+        """Return rows matching the requested TBH with numeric fallback."""
+        if "TBH" not in df.columns:
+            raise ValueError("TBH column not found in data.")
+        
+        well_df = df.loc[(df["TBH"].round(3) == round(target_tbh, 3))]
+        return well_df
+
+    def _iteration_number(path: Path) -> int | None:
+        match = re.search(r"iteration_(\d+)$", path.parent.name)
+        return int(match.group(1)) if match else None
+
+    table_rows: list[dict] = []
+
+    for subexp in subexperiments:
+        init_vals = []
+        final_vals = []
+        run_dirs = sorted([r for r in subexp.iterdir() if r.is_dir()])
+
+        for run in run_dirs:
+            iter_paths = [
+                p for p in run.glob("iteration_*/iteration_*.csv")
+                if p.stem == p.parent.name and _iteration_number(p) is not None
+            ]
+            if not iter_paths:
+                continue
+
+            iter_paths = sorted(iter_paths, key=lambda p: _iteration_number(p))
+            file = iter_paths[-1]
+
+            file = pd.read_csv(file)
+            well_data = _select_well(file)
+
+            if well_data.empty:
+                continue
+
+            init_row = well_data.iloc[0]
+            final_row = well_data.iloc[-1]
+
+            try:
+                init_vals.append((float(init_row["WOIL"]), float(init_row["WGL"]), float(init_row["WWAT"])))
+                final_vals.append((float(final_row["WOIL"]), float(final_row["WGL"]), float(final_row["WWAT"])))
+            except KeyError as e:
+                raise KeyError(f"Expected production column missing: {e}") from e
+
+        if not init_vals or not final_vals:
+            continue
+
+        init_mean = np.mean(init_vals, axis=0)
+        final_mean = np.mean(final_vals, axis=0)
+
+        table_rows.append({
+            "Subexperiment": subexp.name,
+            "Init WOIL": init_mean[0],
+            "Final WOIL": final_mean[0],
+            "Init WGL": init_mean[1],
+            "Final WGL": final_mean[1],
+            "Init WWAT": init_mean[2],
+            "Final WWAT": final_mean[2],
+        })
+
+    if not table_rows:
+        print(f"No production data found for well TBH={well_tbh} in {main_path}")
+        return
+
+    table_df = pd.DataFrame(table_rows, columns=[
+        "Subexperiment", "Init WOIL", "Final WOIL", "Init WGL", "Final WGL", "Init WWAT", "Final WWAT"
+    ])
+    fmt = lambda x: "N/A" if pd.isna(x) else f"{x:.3f}"
+    formatters = {col: fmt for col in table_df.columns if col != "Subexperiment"}
+
+    print(table_df.to_string(index=False, formatters=formatters, col_space=12))
 
 def print_production_sequence(experiment_name: str):
     """
@@ -1186,20 +1288,20 @@ if __name__ == "__main__":
     # ======= Run this if you want to see a set of experiments within a main folder =======
     # main_exp = "experiments rho final" # Change this as needed
     # main_exp = "experiments gl constraints"
-    # main_exp = "experiments maxwells"
-    main_exp = "experiments auglagrangian"
-    # main_exp = "experiments rho max stepsize"
+    # main_exp = "experiments auglagrangian"
+    main_exp = "experiments rho max stepsize"
     # main_exp = "experiments fixed gradient gain sequence"
     # main_exp = "experiments optchoke"
     # main_exp = "experiments scaling factor"
-    # main_exp = "experiments cyclicSPSA"
+    # main_exp = "experiments relaxed cyclicSPSA/40wells"
+    # main_exp = "experiments relaxed cyclicSPSA/12wells"
 
     main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    # experiments = [e for e in main_path.iterdir() if e.is_dir() and "water20" in e.name]
+    experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
-    # for exp in experiments:
-    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
+    for exp in experiments:
+        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+        # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
@@ -1211,13 +1313,15 @@ if __name__ == "__main__":
     # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
 
     # Compare penalty terms across experiments in different main experiments
-    main_experiments = [
-        "experiments auglagrangian",
-        "experiments rho final",
-    ]
-    main_paths = [Path(f"{os.environ['RESULTS_DIR']}/{me}") for me in main_experiments]
-    experiments = []
-    for main_path in main_paths:
-        exps = [e for e in main_path.iterdir() if e.is_dir() and "rho1" in e.name and "water20" in e.name]
-        experiments.extend(exps)
-    plot_penalty_terms(experiments)
+    # main_experiments = [
+    #     "experiments auglagrangian",
+    #     "experiments rho final",
+    # ]
+    # main_paths = [Path(f"{os.environ['RESULTS_DIR']}/{me}") for me in main_experiments]
+    # experiments = []
+    # for main_path in main_paths:
+    #     exps = [e for e in main_path.iterdir() if e.is_dir() and "rho1" in e.name and "water20" in e.name]
+    #     experiments.extend(exps)
+    # plot_penalty_terms(experiments)
+
+    print_production_evolution(main_path=main_path, well_tbh=345.97744293631945)

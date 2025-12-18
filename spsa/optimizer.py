@@ -26,7 +26,7 @@ class SPSAConfig:
     b: float = 0.0          # dual-rate controller NB: Needs to be 0 to disable Lagrangian
     c: float = 0.15         # perturbation magnitude
     A: int   = 5            # stabilizer
-    alpha: float = 0.602    # learning-rate decay
+    alpha: float = 0.502    # learning-rate decay
     beta:  float = 0.602    # dual-rate decay
     gamma: float = 0.051    # perturbation decay
     sigma: float = 0.0      # noise level for oil evaluation
@@ -54,7 +54,7 @@ HYPERPARAM_PRESETS: dict[str, SPSAConfig] = {
     # "fast":    SPSAConfig(a=0.5, c=0.05, A=10,  alpha=0.4, beta=0.7, sigma=0.0, rho=0.0),
 }
 CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
-    "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5, l_max = 0.2),
+    "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=40.0, wat_max=20.0, max_wells=5, l_max = 0.2),
     "strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=10.0, max_wells=5),
     "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
     "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
@@ -99,7 +99,7 @@ class SPSA:
         if constraints.max_wells > self.n_wells:
             print(f"Warning: max_wells ({constraints.max_wells}) > number of wells ({self.n_wells}). Setting max_wells = {self.n_wells}.")
             constraints = replace(constraints, max_wells=self.n_wells)
-        if self.n_wells // constraints.max_wells != 0:
+        if self.n_wells % constraints.max_wells != 0:
             raise SimError("Size of perturbation vector must exactly add up to the total number of wells.")
         self.constraints: WellSystemConstraints = constraints.validate()
 
@@ -108,6 +108,8 @@ class SPSA:
 
         if self.use_cyclic:
             self.ak_scaling = np.sqrt(self.n_wells / self.constraints.max_wells)
+        else:
+            self.ak_scaling = 1.0
 
         # Initialize gradient object
         use_penalty = True if self.hyperparams.rho > 0 else False
@@ -482,7 +484,7 @@ class SPSA:
                     well_data[i] = pd.concat([well_data[i], *staged_data[i]], ignore_index=True)
             y_opt = calculate_state(well_data=well_data)
 
-            if k % 10 == 0 and save_path is not None:
+            if k % 25 == 0 and save_path is not None:
                 print(f"Saving state after {k} successful iterations")
                 save_data(self.wells, well_data=well_data, main_path=save_path, k=k)
 
@@ -508,32 +510,34 @@ if __name__ == "__main__":
     n_runs = 20
     n_sim = 50
 
-    waters = [20.0, 15.0, 10.0]
-    rhos = [1.0, 2.0, 4.0, 8.0, 16.0]
+    max_wells = [1, 2, 3, 4, 6]
+    rhos = [3, 5, 8]
 
     experiments = [
-    {"config": "mixedprod_choke50",
-    "save": f"experiments auglagrangian/rho{rho}_water{water}",
+    {"config": "12randomwells",
+    "save": f"experiments cyclicSPSA/12wells/rho{rho}_perturb{mw}",
     "description": (
-        "Experiment with varying rho using augmented lagrangian on different strictness on water constraint\n"
-        f"rho = {rho} | water <= {water}\n"
-        "Default mixed production well system\n"
+        "Experiment with analyzing the convergence by changing the allowed size of perturbation vector\n"
+        "max_wells = {mw}\n"
+        "l_max = 0.15, wat_max = 63, comb_gl_max = 15.0\n"
+        "Default random production well system\n"
     ),
     "start": "Choke: 0.5 | Gas lift: 0.0",
-    "n_wells": 5,
-    # assuming wat_max controls the water <= X constraint:
+    "n_wells": 12,
     "constraints": replace(
         CONSTRAINT_PRESETS["default"],
-        wat_max=water,
-        l_max=None,
+        wat_max=63,
+        l_max=0.15,
+        max_wells=mw,
+        comb_gl_max=15.0
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
-        "rho": rho,
-        "b": 0.7
+        "a": 0.144,
+        "A": 10,
+        "rho": rho
     },
-    }
-    for water in waters
+    } for mw in max_wells
     for rho in rhos
 ]
 
