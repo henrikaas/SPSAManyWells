@@ -1172,6 +1172,96 @@ def plot_penalty_terms(experiments: list[Path],
 
     plt.show()
 
+def print_production_evolution(main_path: str, well_tbh: float | str):
+    """
+    For each subexperiment inside a main experiment folder, print the average
+    initial and final production for a specific well (identified by its TBH)
+    across all runs. The output is a table with subexperiments as rows and the
+    six requested production metrics as columns.
+    """
+    subexperiments = sorted([p for p in main_path.iterdir() if p.is_dir()])
+    if not subexperiments:
+        print(f"No subexperiments found in {main_path}")
+        return
+
+    try:
+        target_tbh = float(well_tbh)
+    except (TypeError, ValueError):
+        target_tbh = None
+
+    def _select_well(df: pd.DataFrame) -> pd.DataFrame:
+        """Return rows matching the requested TBH with numeric fallback."""
+        if "TBH" not in df.columns:
+            raise ValueError("TBH column not found in data.")
+        
+        well_df = df.loc[(df["TBH"].round(3) == round(target_tbh, 3))]
+        return well_df
+
+    def _iteration_number(path: Path) -> int | None:
+        match = re.search(r"iteration_(\d+)$", path.parent.name)
+        return int(match.group(1)) if match else None
+
+    table_rows: list[dict] = []
+
+    for subexp in subexperiments:
+        init_vals = []
+        final_vals = []
+        run_dirs = sorted([r for r in subexp.iterdir() if r.is_dir()])
+
+        for run in run_dirs:
+            iter_paths = [
+                p for p in run.glob("iteration_*/iteration_*.csv")
+                if p.stem == p.parent.name and _iteration_number(p) is not None
+            ]
+            if not iter_paths:
+                continue
+
+            iter_paths = sorted(iter_paths, key=lambda p: _iteration_number(p))
+            file = iter_paths[-1]
+
+            file = pd.read_csv(file)
+            well_data = _select_well(file)
+
+            if well_data.empty:
+                continue
+
+            init_row = well_data.iloc[0]
+            final_row = well_data.iloc[-1]
+
+            try:
+                init_vals.append((float(init_row["WOIL"]), float(init_row["WGL"]), float(init_row["WWAT"])))
+                final_vals.append((float(final_row["WOIL"]), float(final_row["WGL"]), float(final_row["WWAT"])))
+            except KeyError as e:
+                raise KeyError(f"Expected production column missing: {e}") from e
+
+        if not init_vals or not final_vals:
+            continue
+
+        init_mean = np.mean(init_vals, axis=0)
+        final_mean = np.mean(final_vals, axis=0)
+
+        table_rows.append({
+            "Subexperiment": subexp.name,
+            "Init WOIL": init_mean[0],
+            "Final WOIL": final_mean[0],
+            "Init WGL": init_mean[1],
+            "Final WGL": final_mean[1],
+            "Init WWAT": init_mean[2],
+            "Final WWAT": final_mean[2],
+        })
+
+    if not table_rows:
+        print(f"No production data found for well TBH={well_tbh} in {main_path}")
+        return
+
+    table_df = pd.DataFrame(table_rows, columns=[
+        "Subexperiment", "Init WOIL", "Final WOIL", "Init WGL", "Final WGL", "Init WWAT", "Final WWAT"
+    ])
+    fmt = lambda x: "N/A" if pd.isna(x) else f"{x:.3f}"
+    formatters = {col: fmt for col in table_df.columns if col != "Subexperiment"}
+
+    print(table_df.to_string(index=False, formatters=formatters, col_space=12))
+
 if __name__ == "__main__":
     # plot_spsa_experiment(experiment_name="experiments maxwells/20wells_perturb10", only_optimizing_iterations=True)
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
