@@ -1057,6 +1057,7 @@ def plot_mean_function_landscape(
             plt.show()
     
 def plot_penalty_terms(experiments: list[Path], 
+                       rho: float,
                        iterations: int = 50,
                        only_optimizing_iterations: bool = True,
                        save: bool = False):
@@ -1067,8 +1068,12 @@ def plot_penalty_terms(experiments: list[Path],
     def calculate_penalty(water_prod, gradient: SPSAGradient, only_optimizing: bool = True):
         penalties = []
         if not only_optimizing:
-            for i in range(len(water_prod)):
+            for i in range(0, len(water_prod), 3):
                 violation = gradient.constraints.get_violations({"water": water_prod[i]})
+                penalty = gradient._compute_penalty(violation)
+                penalties.append(penalty)
+
+                violation = gradient.constraints.get_violations({"water": water_prod[i+1]})
                 penalty = gradient._compute_penalty(violation)
                 penalties.append(penalty)
         else:
@@ -1088,9 +1093,10 @@ def plot_penalty_terms(experiments: list[Path],
                                         gradient.constraints.get_violations({"water": water_prod[i]})))
                 lagr_penalties.append(gradient._compute_lagrangian(
                                         gradient.constraints.get_violations({"water": water_prod[i+1]})))
-            lagr_penalties.append(gradient._compute_lagrangian(
-                                    gradient.constraints.get_violations({"water": water_prod[i+2]})))  # Only consider the resulting state
-            
+            else:
+                lagr_penalties.append(gradient._compute_lagrangian(
+                                        gradient.constraints.get_violations({"water": water_prod[i+2]})))  # Only consider the resulting state
+
             # Update multipliers after each full iteration
             gradient.update_lambdas({"water": water_prod[i]}, {"water": water_prod[i+1]})
         return lagr_penalties
@@ -1154,21 +1160,51 @@ def plot_penalty_terms(experiments: list[Path],
         if gradient.use_lagrangian:
             all_terms = [p + l for p, l in zip(mean_penalties, mean_lagrangians)]
 
-        ax.plot(mean_penalties, label=experiment_dir.name)
         if gradient.use_lagrangian:
-            ax.plot(mean_lagrangians, label=f"{experiment_dir.name} (Lagrangian)", linestyle='--')
-            ax.plot(all_terms, label=f"{experiment_dir.name} (Total)", linestyle=':')
+            ax.plot([0] + list(mean_penalties), linestyle=':', color="lightcoral")
+            ax.plot([0] + list(mean_lagrangians), linestyle='--', color="lightcoral")
+            ax.plot([0] + list(all_terms), linestyle='-', color="firebrick")
+            continue
 
-    ax.set_xlabel("Iterations")
-    ax.set_ylabel("Penalty Term")
-    ax.set_title("Penalty Terms Across Experiments")
-    ax.legend()
+        ax.plot([0] + list(mean_penalties), label="Penalty function", color='mediumblue')
+
+    indent = "\u00A0" * 4  # non-breaking spaces so matplotlib won't trim
+    sub_a  = f"{indent}├─ "
+    sub_b  = f"{indent}└─ "
+
+    legend_handles = []
+    legend_labels  = []
+
+    # Header: Penalty
+    legend_handles.append(Line2D([], [], linestyle='-', color='mediumblue'))  # dummy handle
+    legend_labels.append("Penalty function")
+
+    # Header: Lagrangian
+    legend_handles.append(Line2D([], [], linestyle='-', color='firebrick'))  # dummy handle
+    legend_labels.append("Lagrangian function (Total)")
+
+    # Match your styles: lagrangian is '--', total is ':'
+    legend_handles.append(Line2D([], [], linestyle='--', color='lightcoral'))
+    legend_labels.append(f"{sub_a}Lagrangian term")
+
+    legend_handles.append(Line2D([], [], linestyle=':', color='lightcoral'))
+    legend_labels.append(f"{sub_b}Penalty Term")
+
+    ax.legend(legend_handles, legend_labels, frameon=True, loc='upper right')
+
+    ax.set_ylim(top=1.8)
+    if only_optimizing_iterations:
+        ax.set_xlabel("Iterations")
+    else:
+        ax.set_xlabel("Function Evaluations")
+    ax.set_ylabel("Penalty Value")
+    # ax.set_title(f"Penalty Terms for rho={rho}")
     plt.tight_layout()
 
     if save:
         save_dir = f"{PLOT_DIR}/penalty_terms"
         os.makedirs(save_dir, exist_ok=True)
-        plt.savefig(f"{save_dir}/penalty_terms.png", dpi=300, bbox_inches="tight")
+        plt.savefig(f"{save_dir}/rho{rho}_optimizing{only_optimizing_iterations}.png", dpi=300, bbox_inches="tight")
 
     plt.show()
 
@@ -1276,20 +1312,23 @@ if __name__ == "__main__":
     # ======= Run this if you want to see a set of experiments within a main folder =======
     # main_exp = "experiments rho final" # Change this as needed
     # main_exp = "experiments gl constraints"
-    # main_exp = "experiments maxwells"
-    main_exp = "experiments auglagrangian"
+    # main_exp = "experiments auglagrangian"
     # main_exp = "experiments rho max stepsize"
     # main_exp = "experiments fixed gradient gain sequence"
     # main_exp = "experiments optchoke"
     # main_exp = "experiments scaling factor"
     # main_exp = "experiments cyclicSPSA"
+    # main_exp = "experiments relaxed cyclicSPSA/40wells"
+    # main_exp = "experiments relaxed cyclicSPSA/12wells"
+    main_exp = "experiments cyclicSPSA/40wells"
+    # main_exp = "experiments cyclicSPSA/12wells"
 
     main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    # experiments = [e for e in main_path.iterdir() if e.is_dir() and "water20" in e.name]
+    experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
-    # for exp in experiments:
-    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
+    for exp in experiments:
+        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+        plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
@@ -1301,13 +1340,13 @@ if __name__ == "__main__":
     # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
 
     # Compare penalty terms across experiments in different main experiments
-    main_experiments = [
-        "experiments auglagrangian",
-        "experiments rho final",
-    ]
-    main_paths = [Path(f"{os.environ['RESULTS_DIR']}/{me}") for me in main_experiments]
-    experiments = []
-    for main_path in main_paths:
-        exps = [e for e in main_path.iterdir() if e.is_dir() and "rho1" in e.name and "water20" in e.name]
-        experiments.extend(exps)
-    plot_penalty_terms(experiments)
+    # main_experiments = [
+    #     "experiments auglagrangian",
+    #     "experiments rho final",
+    # ]
+    # main_paths = [Path(f"{os.environ['RESULTS_DIR']}/{me}") for me in main_experiments]
+    # experiments = []
+    # for main_path in main_paths:
+    #     exps = [e for e in main_path.iterdir() if e.is_dir() and "rho2." in e.name and "water20" in e.name]
+    #     experiments.extend(exps)
+    # plot_penalty_terms(experiments, rho=2, only_optimizing_iterations=False, save=True)
