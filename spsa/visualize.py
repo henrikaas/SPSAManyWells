@@ -915,7 +915,7 @@ def plot_multiple_function_landscapes(experiment_name: str, wells: list[int] | N
             # for y in y_vals:
             #     plt.axhline(y, color="grey", linewidth=0.5, alpha=0.4)
 
-            # plt.colorbar(contour, label="Normalized Value")
+            plt.colorbar(contour, label="Normalized Value")
             # plt.title("Smoothed Contour Map (Viridis)")
             plt.xlabel("Choke")
             plt.ylabel("Gas lift")
@@ -1391,9 +1391,11 @@ if __name__ == "__main__":
     # print_production_sequence(experiment_name="experiments cyclicSPSA/20wells_perturb8")
     # plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
-    # plot_multiple_function_landscapes(experiment_name="grid evaluation", wells=[2,7,11,13,25,37,8], sigma=1.0, normalize="local", objective=["WWAT"], save=True)
+    plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", 
+                                      wells=None,
+                                      sigma=1.0, normalize="None", objective=["WWAT"], save=False)
     # plot_mean_function_landscape(experiment_name="grid evaluation", wells=None, sigma=1.0, normalize="local", objective=["WWAT"], save=True)
-    plot_cumulative_production(experiment_name="experiments rho final/rho16.0_water20.0", only_optimizing_iterations=False, save=False)
+    # plot_cumulative_production(experiment_name="experiments rho final/rho16.0_water20.0", only_optimizing_iterations=False, save=False)
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
     main_exp = "experiments rho final" # Change this as needed

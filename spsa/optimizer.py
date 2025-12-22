@@ -500,38 +500,40 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 20
+    n_runs = 40
     n_sim = 50
 
-    waters = [20.0, 15.0]
-    rhos = [2.0, 4.0, 8.0, 16.0]
-    max_stepsize = [0.1, 0.15]
+    wells = [1, 2, 7, 8, 25]
+    constrain = [True, False]  # Whether to apply water cut constraint
+    constraint_value = {1: 0.66,
+                        2: 0.55,
+                        7: 12.5,
+                        8: 2.35,
+                        25: 6.75}
 
     experiments = [
-    {"config": "mixedprod_choke50",
-    "save": f"experiments max stepsize/max{maxstep}_rho{rho}_water{water}",
+    {"config": f"single_wells/well{w}",
+    "save": f"experiments single wells/well{w}_constrain{c}",
     "description": (
-        "Experiment with maximum value on stepsize\n"
-        f"Max step size = {maxstep}\n"
-        f"rho = {rho} | water <= {water}\n"
-        "Default mixed production well system\n"
+        "Experiment on single well systems\n"
+        "Unconstrained" if not c else f"Constrained to water cut <= {constraint_value[w]}\n"
     ),
     "start": "Choke: 0.5 | Gas lift: 0.0",
-    "n_wells": 5,
+    "n_wells": 1,
     # assuming wat_max controls the water <= X constraint:
     "constraints": replace(
         CONSTRAINT_PRESETS["default"],
-        wat_max=water,
-        l_max=maxstep,
+        max_wells=1,
+        l_max=None,
+        wat_max=constraint_value[w] if c else 1000.0,
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
-        "rho": rho,
+        "a": 0.2,
     },
     }
-    for water in waters
-    for rho in rhos
-    for maxstep in max_stepsize
+    for w in wells
+    for c in constrain
 ]
 
     # ----------- Main script -----------
