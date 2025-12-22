@@ -70,6 +70,18 @@ INIT_INFO: dict = {
         "gaslift": 0.0,
         "opt_prod": 68,
     },
+    "40randomwells": {
+        "oil": 485,
+        "water": 205.0,
+        "gaslift": 0.0,
+        # "opt_prod": 130 # TODO: dont know yet
+    },
+    "12randomwells": {
+        "oil": 145.0,
+        "water": 60.0,
+        "gaslift": 0.0,
+        # "opt_prod": 130 # TODO: dont know yet
+    },
 }
 
 
@@ -1298,8 +1310,82 @@ def print_production_evolution(main_path: str, well_tbh: float | str):
 
     print(table_df.to_string(index=False, formatters=formatters, col_space=12))
 
+def plot_cumulative_production(experiment_name: str,
+                         only_optimizing_iterations: bool = False,
+                         save: bool = False):
+    """
+    Plots the cumulative production of the objective function.
+    """
+    experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
+    info = extract_settings(experiment_dir)
+    config_file = info["config_file"]
+    info.update(INIT_INFO[config_file])
+
+    runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+    n_runs = len(runs)
+
+    n_wells = info["n_wells"]
+
+    # Create figure
+    fig = plt.figure(figsize=(13.33, 7.5), constrained_layout=True)
+
+    productions = []
+    for run_idx, run in enumerate(runs):
+        print(f"Processing Run {run_idx}/{n_runs-1}...")
+        print(run)
+        # Find all CSVs that match the pattern iteration_X/iteration_X.csv
+        candidates = [
+            p for p in run.glob("iteration_50/iteration_*.csv")
+            if p.stem == p.parent.name  # ensures iteration_50/iteration_50.csv
+        ]
+
+        if candidates:
+            # Extract iteration numbers from folder names
+            def get_iter(p: Path) -> int:
+                return int(p.parent.name.split("_")[1])
+            
+            latest = max(candidates, key=get_iter) # Get the file with the highest iteration number
+            df = pd.read_csv(latest)
+            n_sims = get_iter(latest)
+        else:
+            print(f"No valid data found for Run {run_idx}. Skipping.")
+            continue
+        
+        # Number of wells with check
+        if n_wells != len(df.groupby('ID')):
+            raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
+
+        # TODO: Check if we need data cleaning
+        # df = keep_last_unique_pairs(df, correct_i = 3*i)
+        # n_sims = int(len(df) / (2 * min(max_wells, n_wells) + n_wells))
+        
+        oil, gasl, water = extract_production_history(data=df, 
+                                                      n_sims=n_sims, 
+                                                      init_production=(info["oil"], info["gaslift"], info["water"]),
+                                                      only_optimizing=only_optimizing_iterations)
+
+        # x_vals = range(1, len(oil) + 1)
+        oil[0] = 0.0  # Start cumulative from zero
+        oil = np.cumsum(oil)
+        productions.append(oil)
+
+    productions = np.array(productions)              # shape: (n_runs, n_iter)
+    mean_productions = productions.mean(axis=0)       # mean over runs
+    diff = np.divide(productions - mean_productions, mean_productions, where=mean_productions!=0, out=np.zeros_like(productions))
+
+    x = np.arange(productions.shape[1])
+    for d in diff:
+        plt.plot(x, d, alpha=0.8)
+
+    # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
+    fig.suptitle(experiment_name)
+    if save:
+        plt.savefig(f"{PLOT_DIR}/{experiment_name}_prod.png", dpi=300, bbox_inches="tight")
+
+    plt.show()
+
 if __name__ == "__main__":
-    # plot_spsa_experiment(experiment_name="experiments maxwells/20wells_perturb10", only_optimizing_iterations=True)
+    # plot_spsa_experiment(experiment_name="experiments rho final/rho16.0_water20.0", only_optimizing_iterations=False)
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
     # print_production_sequence(experiment_name="experiments cyclicSPSA/20wells_perturb8")
@@ -1307,10 +1393,10 @@ if __name__ == "__main__":
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
     # plot_multiple_function_landscapes(experiment_name="grid evaluation", wells=[2,7,11,13,25,37,8], sigma=1.0, normalize="local", objective=["WWAT"], save=True)
     # plot_mean_function_landscape(experiment_name="grid evaluation", wells=None, sigma=1.0, normalize="local", objective=["WWAT"], save=True)
-
+    plot_cumulative_production(experiment_name="experiments rho final/rho16.0_water20.0", only_optimizing_iterations=False, save=False)
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
-    # main_exp = "experiments rho final" # Change this as needed
+    main_exp = "experiments rho final" # Change this as needed
     # main_exp = "experiments gl constraints"
     # main_exp = "experiments auglagrangian"
     # main_exp = "experiments rho max stepsize"
@@ -1320,15 +1406,15 @@ if __name__ == "__main__":
     # main_exp = "experiments cyclicSPSA"
     # main_exp = "experiments relaxed cyclicSPSA/40wells"
     # main_exp = "experiments relaxed cyclicSPSA/12wells"
-    main_exp = "experiments cyclicSPSA/40wells"
+    # main_exp = "experiments cyclicSPSA/40wells"
     # main_exp = "experiments cyclicSPSA/12wells"
 
-    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    # experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
-    for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-        plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
+    # for exp in experiments:
+    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+    #     plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
