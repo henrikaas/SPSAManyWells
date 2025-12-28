@@ -504,19 +504,24 @@ if __name__ == "__main__":
     n_sim = 50
 
     wells = [1, 2, 7, 8, 25]
-    constrain = [True, False]  # Whether to apply water cut constraint
     constraint_value = {1: 0.66,
-                        2: 0.55,
+                        2: 0.6,
                         7: 12.5,
-                        8: 2.35,
-                        25: 6.75}
+                        8: 2.45,
+                        25: 7}
+    rho_value = {1: 1250,
+                2: 1000,
+                7: 4,
+                8: 50,
+                25: 16}
 
     experiments = [
     {"config": f"single_wells/well{w}",
-    "save": f"experiments single wells/well{w}_constrain{c}",
+    "save": f"experiments single wells/well{w}_constrainTrue",
     "description": (
         "Experiment on single well systems\n"
-        "Unconstrained" if not c else f"Constrained to water cut <= {constraint_value[w]}\n"
+        f"Constrained to water cut <= {constraint_value[w]}\n"
+        f"rho = {rho_value[w]}"
     ),
     "start": "Choke: 0.5 | Gas lift: 0.0",
     "n_wells": 1,
@@ -525,15 +530,15 @@ if __name__ == "__main__":
         CONSTRAINT_PRESETS["default"],
         max_wells=1,
         l_max=None,
-        wat_max=constraint_value[w] if c else 1000.0,
+        wat_max=constraint_value[w]
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
         "a": 0.2,
+        "rho": rho_value[w]
     },
     }
     for w in wells
-    for c in constrain
 ]
 
     # ----------- Main script -----------
