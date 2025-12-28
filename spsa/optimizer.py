@@ -503,16 +503,16 @@ if __name__ == "__main__":
     n_runs = 20
     n_sim = 50
 
-    waters = [20.0, 15.0]
-    rhos = [2.0, 4.0, 8.0, 16.0]
-    max_stepsize = [0.1, 0.15]
+    rhos = [1,2,4,8]
+    stepsizes = [0.1, 0.15]
 
     experiments = [
     {"config": "mixedprod_choke50",
-    "save": f"experiments max stepsize/max{maxstep}_rho{rho}_water{water}",
+    "save": f"experiments max stepsize/max{ss}_rho_{rho}_water{water}_auglagrangian",
     "description": (
         "Experiment with maximum value on stepsize\n"
-        f"Max step size = {maxstep}\n"
+        "Augmented Lagrangian SPSA\n"
+        f"Max step size = {ss}\n"
         f"rho = {rho} | water <= {water}\n"
         "Default mixed production well system\n"
     ),
@@ -521,18 +521,19 @@ if __name__ == "__main__":
     # assuming wat_max controls the water <= X constraint:
     "constraints": replace(
         CONSTRAINT_PRESETS["default"],
-        wat_max=water,
-        l_max=maxstep,
+        wat_max=20,
+        l_max=ss,
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
         "rho": rho,
+        "b": 0.7,
     },
     }
-    for water in waters
     for rho in rhos
-    for maxstep in max_stepsize
-]
+    for ss in stepsizes
+    for water in [15, 20]
+    ]
 
     # ----------- Main script -----------
     work_dir, results_dir = create_dirs(experiments, n_runs)
