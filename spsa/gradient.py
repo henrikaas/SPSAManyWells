@@ -39,7 +39,7 @@ class SPSAGradient:
 
         self.gradient: np.ndarray = None
 
-    def compute_gradient(self, y_pos, y_neg, delta):
+    def compute_gradient(self, y_pos, y_neg, delta, ck):
         """
         Compute the gradient using the SPSA formula.
 

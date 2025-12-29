@@ -413,7 +413,7 @@ class SPSA:
                     ak = self.hyperparams.a / ((subvector_k[subvector_idx] + self.hyperparams.A) ** self.hyperparams.alpha)
 
                 # Compute the gradient
-                gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions))
+                gradient = self.gradient.compute_gradient(y_pos=y_pos, y_neg=y_neg, delta=np.array(directions), ck=ck)
                 step_size = gradient * ak
                 step_size = self.constraints.project_step_size(step_size) # Project step size to satisfy constraints
                 step_size[:,1] *=  self.scaling_factor # Scale the gradient for gas lift wells
@@ -508,7 +508,7 @@ if __name__ == "__main__":
 
     experiments = [
     {"config": "mixedprod_choke50",
-    "save": f"experiments max stepsize/max{ss}_rho_{rho}_water{water}_auglagrangian",
+    "save": f"test/max{ss}_rho_{rho}_water{water}_auglagrangian",
     "description": (
         "Experiment with maximum value on stepsize\n"
         "Augmented Lagrangian SPSA\n"

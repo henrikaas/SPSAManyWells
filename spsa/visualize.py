@@ -610,7 +610,7 @@ def plot_production(experiment_name: str,
             label="_nolegend_")
 
     if "gas-lift" in production_types:
-        axs[production_types.index("gas-lift")].set_ylim(bottom=-0.1, top=12) # These needs to be set manually
+        axs[production_types.index("gas-lift")].set_ylim(bottom=-0.1, top=13) # These needs to be set manually
         mean_gl = np.mean(np.array(gls), axis=0)
         axs[production_types.index("gas-lift")].plot(mean_gl, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average gas-lift production
 
@@ -621,7 +621,7 @@ def plot_production(experiment_name: str,
             alpha=0.6,
             label="_nolegend_")
     if "water" in production_types:
-        axs[production_types.index("water")].set_ylim(top=21.5) # These needs to be set manually, water = 20
+        axs[production_types.index("water")].set_ylim(top=22) # These needs to be set manually, water = 20
         # axs[production_types.index("water")].set_ylim(bottom=5, top=21) # These needs to be set manually, water = 15
         mean_water = np.mean(np.array(waters), axis=0)
         axs[production_types.index("water")].plot(mean_water, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average water production
@@ -659,7 +659,7 @@ def plot_production(experiment_name: str,
         ax.grid(True)
 
     print_text(axs[0], rf"$\rho = {info.get('rho', 'N/A')}$", (0.02, 0.95), ('top', 'left'))
-    fig.supylabel("Production rate (kg/s)")
+    fig.supylabel("Production Rate (kg/s)")
     # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
     # fig.suptitle(experiment_name)
     # axs[0].legend(loc="lower right")
@@ -1568,8 +1568,10 @@ def plot_cumulative_production(experiment_name: str,
     mean_productions = productions.mean(axis=0)       # mean over runs
     diff = np.divide(productions - mean_productions, mean_productions, where=mean_productions!=0, out=np.zeros_like(productions))
 
-    print(f"Mean cumulative production after {iteration} iterations: {mean_productions[-1]}")
-    print(f"St. dev. of cumulative production after {iteration} iterations: {np.std(productions, axis=0)[-1]}")
+    total_prod = mean_productions[-1] * 3600 * 4 / 1000
+    print(f"Mean cumulative production after {iteration} iterations: {total_prod}")
+    last_std = np.std(productions, axis=0)[-1] * 3600 * 4 / 1000
+    print(f"St. dev. of cumulative production after {iteration} iterations: {last_std}")
 
     x = np.arange(productions.shape[1])
     ax.axhline(y=0, color='black', linewidth=1, linestyle='--', alpha=0.7, label="Mean Cumulative Production")
@@ -1612,74 +1614,7 @@ def plot_single_well_decision_vector_history_over_contour(
       - iteration: last iteration to include. If None, uses the max iteration folder found in the run.
       - config_path: config file containing only one well
     """
-    def plot_contour_function_landscape(fig, ax,
-        well: pd.DataFrame,
-        sigma=1.0,
-    ):
-        """
-        Visualizes the function landscape (WGL vs CHK vs WOIL) using contourf.
-        """
-        # 1. Sort by CHK and WGL
-        df_sorted = well.sort_values(by=["WGL", "CHK"])
-        df_sorted["OBJ"] = df_sorted[["WOIL"]].sum(axis=1)
-        df_sorted["CONSTR"] = df_sorted["WWAT"]
-
-        # 2. Get unique x and y coordinates
-        x_vals = np.sort(df_sorted["CHK"].unique())
-        y_vals = np.sort(df_sorted["WGL"].unique())
-
-        # 3. Pivot to form 2D grid
-        grid = df_sorted.pivot_table(index="WGL", columns="CHK", values="OBJ")
-        grid = grid.interpolate(method="linear", axis=0).interpolate(method="linear", axis=1)
-        data = grid.values
-
-        data = (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data))
-
-        # --- Smooth ---
-        data = gaussian_filter(data, sigma=sigma)
-
-        # --- Padding for nicer limits ---
-        dx = x_vals[1] - x_vals[0]
-        dy = y_vals[1] - y_vals[0]
-
-        pad_frac = 0.03
-        pad_x = int(pad_frac * len(x_vals))
-        pad_y = int(pad_frac * len(y_vals))
-
-        data_padded = np.pad(
-            data,
-            ((pad_y, pad_y), (pad_x, pad_x)),
-            mode="edge"
-        )
-
-        x_pad = np.linspace(
-            x_vals[0] - pad_x * dx,
-            x_vals[-1] + pad_x * dx,
-            data_padded.shape[1]
-        )
-
-        y_pad = np.linspace(
-            y_vals[0] - pad_y * dy,
-            y_vals[-1] + pad_y * dy,
-            data_padded.shape[0]
-        )
-
-        ax.contourf(
-            x_pad,
-            y_pad,
-            data_padded,
-            levels=60,
-            cmap="viridis",
-        )
-
-        # plt.colorbar(contour, label="Normalized Value")
-        # plt.title("Smoothed Contour Map (Viridis)")
-        ax.set_xlabel("Choke Opening")
-        ax.set_ylabel("Gas-Lift Injection")
-
-        return fig, ax
-    
-    def plot_contour_function_landscape2(
+    def plot_contour_function_landscape(
         fig,
         ax,
         well: pd.DataFrame,
@@ -1711,9 +1646,6 @@ def plot_single_well_decision_vector_history_over_contour(
         obj = obj_grid.values
         con = con_grid.values
 
-        # Normalize objective (only)
-        obj = (obj - np.nanmin(obj)) / (np.nanmax(obj) - np.nanmin(obj))
-
         # Smooth objective (and optionally constraint; see note below)
         obj = gaussian_filter(obj, sigma=sigma)
         # con = gaussian_filter(con, sigma=sigma)  # <- OPTIONAL: smooth boundary too
@@ -1733,7 +1665,7 @@ def plot_single_well_decision_vector_history_over_contour(
         y_pad = np.linspace(y_vals[0] - pad_y * dy, y_vals[-1] + pad_y * dy, obj_padded.shape[0])
 
         # --- Base contour (objective) ---
-        ax.contourf(
+        cf = ax.contourf(
             x_pad,
             y_pad,
             obj_padded,
@@ -1749,7 +1681,7 @@ def plot_single_well_decision_vector_history_over_contour(
                 y_pad,
                 con_padded,
                 levels=[boundary, np.nanmax(con_padded)],
-                colors=["white"],        # overlay color
+                colors=["saddlebrown"],        # overlay color
                 alpha=shade_alpha,
             )
         except:
@@ -1760,18 +1692,20 @@ def plot_single_well_decision_vector_history_over_contour(
                 y_pad,
                 viol,
                 levels=[0.5, 1.5],      # strictly increasing, always valid
-                colors=["white"],
+                colors=["saddlebrown"],
                 alpha=shade_alpha,
-)
+            )
+        
+        fig.colorbar(cf, label="Oil Production")
 
         # --- Draw boundary line (CONSTR == boundary) ---
-        ax.contour(
+        cs = ax.contour(
             x_pad,
             y_pad,
             con_padded,
             levels=[boundary],
-            colors="white",          # line color
-            linewidths=2.0,
+            colors="black",          # line color
+            linewidths=1.0,
         )
 
         ax.set_xlabel("Choke Opening")
@@ -1799,7 +1733,7 @@ def plot_single_well_decision_vector_history_over_contour(
         fig = plt.figure(figsize=(8,8))
         ax = plt.gca()
 
-        fig, ax = plot_contour_function_landscape2(
+        fig, ax = plot_contour_function_landscape(
             fig, ax,
             well=contour_data,
             boundary=constraints.get("wat_max", 21.0),
@@ -1838,26 +1772,15 @@ def plot_single_well_decision_vector_history_over_contour(
         ax.set_xlim(u_min-0.01, u_max+0.01)
         ax.set_ylim(gl_min-0.01, gl_max+0.01)
 
-        # ax = plt.gca()
-        # ax.add_patch(
-        #     Rectangle(
-        #         (u_min, gl_min),
-        #         u_max - u_min,
-        #         gl_max - gl_min,
-        #         facecolor="none",       # change to e.g. 'tab:green' with alpha if you want fill
-        #         edgecolor="black",      # outline color
-        #         linewidth=2.5,          # thicker outline
-        #         linestyle="--",         # dashed outline; change to '-' for solid
-        #         zorder=5,                # put outline above lines; lower if you want it behind
-        #         alpha=0.3,                # opacity of the outline
-        #         label="Boundaries of the Feasible Region"  # label for legend
-        #     )
-        # )
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Line2D([0], [0], color="black", lw=1.0))
+        labels.append("Water Boundary")
+        ax.legend(handles, labels)
 
         plt.xlabel('Choke Opening')
         plt.ylabel('Gas-Lift Injection')
         # plt.title('History of the Decision Vector')
-        plt.legend()
+        # plt.legend()
         plt.tight_layout()
 
         # fig.suptitle(experiment_name)
@@ -1869,10 +1792,10 @@ def plot_single_well_decision_vector_history_over_contour(
 
 if __name__ == "__main__":
     # plot_spsa_experiment(experiment_name="experiments rho final/rho16.0_water20.0", only_optimizing_iterations=True) #Used for anlaysing
-    # plot_production(experiment_name="experiments rho final/rho16.0_water20.0", production_types=["oil", "water"], highlight=10, only_optimizing_iterations=True, save=True) # Used for plotting to paper
+    # plot_production(experiment_name="experiments rho final/rho16.0_water20.0", production_types=["oil"], highlight=None, only_optimizing_iterations=True, save=False) # Used for plotting to paper
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
-    # print_production_sequence(experiment_name="experiments cyclicSPSA/20wells_perturb8")
+    print_production_sequence(experiment_name="experiments rho final/rho16.0_water20.0")
     # plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
     # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=[1], sigma=1.0, normalize="local", objective=["WOIL"], save=True)
@@ -1886,7 +1809,7 @@ if __name__ == "__main__":
     # )
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
-    # main_exp = "experiments rho final" # Change this as needed
+    main_exp = "experiments rho final" # Change this as needed
     # main_exp = "experiments gl constraints"
     # main_exp = "experiments auglagrangian"
     # main_exp = "experiments fixed gradient gain sequence"
@@ -1897,23 +1820,23 @@ if __name__ == "__main__":
     # main_exp = "experiments relaxed cyclicSPSA/12wells"
     # main_exp = "experiments cyclicSPSA/40wells"
     # main_exp = "experiments cyclicSPSA/12wells"
-    # main_exp = "experiments max stepsize"
-    main_exp = "experiments single wells"
+    main_exp = "experiments max stepsize"
+    # main_exp = "experiments single wells"
     # main_exp = "experiments ak"
     # main_exp = "experiments rho high_gl_start"
 
-    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    # experiments = [e for e in main_path.iterdir() if e.is_dir() if "20.0" in e.name]
 
-    for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-        # plot_production(experiment_name=f"{main_exp}/{exp.name}", highlight=None, only_optimizing_iterations=False, save=False)
-        plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
-        # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
-        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
-        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
-    #     # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
-        # plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
+    # for exp in experiments:
+    #     # plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+    #     plot_production(experiment_name=f"{main_exp}/{exp.name}", highlight=None, only_optimizing_iterations=True, save=False)
+    #     # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
+    #     # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
+    #     # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
+    #     # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
+    # #     # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
+    #     plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
     
 
     # Average production across experiments in a main folder
