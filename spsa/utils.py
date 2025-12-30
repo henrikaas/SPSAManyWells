@@ -310,7 +310,8 @@ def save_init_log(path: str, description: dict[str, any]):
         f.write(f"gl_max: {constraints.gl_max}\n")
         f.write(f"comb_gl_max: {constraints.comb_gl_max}\n")
         f.write(f"wat_max: {constraints.wat_max}\n")
-        f.write(f"max_wells: {constraints.max_wells}\n\n")
+        f.write(f"max_wells: {constraints.max_wells}\n")
+        f.write(f"movement max: {constraints.l_max}\n\n")
 
         hyperparams: SPSAConfig = description['hyperparams']
         f.write(f"SPSA hyperparametres:\n")
