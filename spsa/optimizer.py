@@ -487,7 +487,7 @@ class SPSA:
 
         if save_path is not None:
             print(f"Saving final state after {k-1} successful iterations")
-            if (k - 1) % 10 != 0:
+            if (k - 1) % 25 != 0:
                 # Save data stream
                 save_data(self.wells, well_data=well_data, main_path=save_path, k=k-1)
             # Save failure log
@@ -503,15 +503,11 @@ if __name__ == "__main__":
     n_runs = 40
     n_sim = 50
 
-    wells = [1, 2, 7, 8, 25]
+    wells = [1, 8, 25]
     constraint_value = {1: 0.66,
-                        2: 0.6,
-                        7: 12.5,
                         8: 2.45,
                         25: 7}
-    rho_value = {1: 5000,
-                2: 5000,
-                7: 10,
+    rho_value = {1: 7500,
                 8: 100,
                 25: 50}
 
