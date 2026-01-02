@@ -487,7 +487,7 @@ class SPSA:
 
         if save_path is not None:
             print(f"Saving final state after {k-1} successful iterations")
-            if (k - 1) % 25 != 0:
+            if (k - 1) % 10 != 0:
                 # Save data stream
                 save_data(self.wells, well_data=well_data, main_path=save_path, k=k-1)
             # Save failure log
