@@ -1802,12 +1802,12 @@ if __name__ == "__main__":
     # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=[1], sigma=1.0, normalize="local", objective=["WOIL"], save=True)
     # plot_mean_function_landscape(experiment_name="grid evaluation", wells=None, sigma=1.0, normalize="local", objective=["WOIL"], save=True)
     # plot_cumulative_production(experiment_name="experiments rho final/rho16.0_water20.0", iteration=50, highlight=10, only_optimizing_iterations=False, save=True)
-    # plot_single_well_decision_vector_history_over_contour(
-    #     experiment_name="experiments single wells/well1_constrainTrue",
-    #     contour_name="grid evaluation mixedprod",
-    #     well_id=1,
-    #     type="scatter"
-    # )
+    plot_single_well_decision_vector_history_over_contour(
+        experiment_name="experiments single wells/well25_constrainTrue",
+        contour_name="grid evaluation",
+        well_id=25,
+        type="scatter"
+    )
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
     # main_exp = "experiments rho final" # Change this as needed
