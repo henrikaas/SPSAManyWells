@@ -535,6 +535,7 @@ def plot_average_production(experiments: list[Path],
     # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
     # fig.suptitle(experiment_name)
     axs[0].legend(loc="lower right")
+    fig.supylabel("Production Rate (kg/s)")
     if save:
         save_dir = f"{PLOT_DIR}/{experiments[0].parent.name}"
         os.makedirs(save_dir, exist_ok=True)
@@ -1795,7 +1796,7 @@ if __name__ == "__main__":
     # plot_production(experiment_name="experiments rho final/rho16.0_water20.0", production_types=["oil"], highlight=None, only_optimizing_iterations=True, save=False) # Used for plotting to paper
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
-    print_production_sequence(experiment_name="experiments rho final/rho16.0_water20.0")
+    # print_production_sequence(experiment_name="experiments rho final/rho16.0_water20.0")
     # plot_decision_vector_history(experiment_name="experiments rho v3/rho8_water20", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
     # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=[1], sigma=1.0, normalize="local", objective=["WOIL"], save=True)
@@ -1809,9 +1810,9 @@ if __name__ == "__main__":
     # )
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
-    main_exp = "experiments rho final" # Change this as needed
+    # main_exp = "experiments rho final" # Change this as needed
     # main_exp = "experiments gl constraints"
-    # main_exp = "experiments auglagrangian"
+    main_exp = "experiments auglagrangian"
     # main_exp = "experiments fixed gradient gain sequence"
     # main_exp = "experiments optchoke"
     # main_exp = "experiments scaling factor"
@@ -1820,13 +1821,13 @@ if __name__ == "__main__":
     # main_exp = "experiments relaxed cyclicSPSA/12wells"
     # main_exp = "experiments cyclicSPSA/40wells"
     # main_exp = "experiments cyclicSPSA/12wells"
-    main_exp = "experiments max stepsize"
+    # main_exp = "experiments max stepsize"
     # main_exp = "experiments single wells"
     # main_exp = "experiments ak"
     # main_exp = "experiments rho high_gl_start"
 
-    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    # experiments = [e for e in main_path.iterdir() if e.is_dir() if "20.0" in e.name]
+    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    experiments = [e for e in main_path.iterdir() if e.is_dir() if "20.0" in e.name]
 
     # for exp in experiments:
     #     # plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
@@ -1840,8 +1841,7 @@ if __name__ == "__main__":
     
 
     # Average production across experiments in a main folder
-    # experiments = [e for e in main_path.iterdir() if (e.is_dir() and "20" in e.name)]
-    # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
+    plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
 
     # Compare penalty terms across experiments in different main experiments
     # main_experiments = [
