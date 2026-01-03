@@ -503,13 +503,11 @@ if __name__ == "__main__":
     n_runs = 40
     n_sim = 50
 
-    wells = [1, 8, 25]
+    wells = [1, 25]
     constraint_value = {1: 0.66,
-                        8: 2.45,
                         25: 7}
-    rho_value = {1: 7500,
-                8: 100,
-                25: 50}
+    rho_value = {1: 30000,
+                25: 250}
 
     experiments = [
     {"config": f"single_wells/well{w}",
@@ -530,7 +528,7 @@ if __name__ == "__main__":
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
-        "a": 0.2,
+        "a": 0.1,
         "rho": rho_value[w]
     },
     }
