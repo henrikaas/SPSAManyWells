@@ -57,7 +57,7 @@ class SPSAGradient:
         L_pos = -self._compute_objective(y_pos) + self._compute_penalty(violations_pos) + self._compute_lagrangian(violations_pos)
         L_neg = -self._compute_objective(y_neg) + self._compute_penalty(violations_neg) + self._compute_lagrangian(violations_neg)
 
-        grad = (L_pos - L_neg).reshape(-1, 1) / (2 * delta)
+        grad = (L_pos - L_neg).reshape(-1, 1) / (2 * ck * delta)
         grad[np.isinf(grad)] = 0 # Set infinite values to 0
 
         self.gradient = grad
