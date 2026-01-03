@@ -85,7 +85,7 @@ INIT_INFO: dict = {
         # "opt_prod": 130 # TODO: dont know yet
     },
     "12randomwells": {
-        "oil": 145.0,
+        "oil": 160.0,
         "water": 60.0,
         "gaslift": 0.0,
         # "opt_prod": 130 # TODO: dont know yet
@@ -421,7 +421,7 @@ def plot_average_production(experiments: list[Path],
     Compares a set of given experiments by plotting the average production over all runs.
     """
     fig, axs = plt.subplots(len(production_types), 1, figsize=(13.33, 7.5), sharex=True, constrained_layout=True)
-    experiments = sorted(experiments, key=lambda e: float(re.search(r'rho(\d+(?:\.\d+)?)', e.name).group(1)))
+    # experiments = sorted(experiments, key=lambda e: float(re.search(r'rho(\d+(?:\.\d+)?)', e.name).group(1)))
 
     for experiment_dir in experiments:
         info = extract_settings(experiment_dir)
@@ -458,6 +458,8 @@ def plot_average_production(experiments: list[Path],
         if "rho" in experiment_dir.name and "water" in experiment_dir.name:
             label=experiment_dir.name.split("_")[0].replace("rho", "")
             label = f"ρ = {label}"
+        else:
+            label=experiment_dir.name
 
         for i, prod_type in enumerate(production_types):
             if prod_type == 'oil':
@@ -1803,16 +1805,17 @@ if __name__ == "__main__":
     # plot_mean_function_landscape(experiment_name="grid evaluation", wells=None, sigma=1.0, normalize="local", objective=["WOIL"], save=True)
     # plot_cumulative_production(experiment_name="experiments rho final/rho16.0_water20.0", iteration=50, highlight=10, only_optimizing_iterations=False, save=True)
     plot_single_well_decision_vector_history_over_contour(
-        experiment_name="experiments single wells/well25_constrainTrue",
+        experiment_name="experiments single wells/well8_constrainTrue",
         contour_name="grid evaluation",
-        well_id=25,
+        well_id=8,
         type="scatter"
     )
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
     # main_exp = "experiments rho final" # Change this as needed
+    # main_exp = "experiments rho high_gl_start"
     # main_exp = "experiments gl constraints"
-    main_exp = "experiments auglagrangian"
+    # main_exp = "experiments auglagrangian"
     # main_exp = "experiments fixed gradient gain sequence"
     # main_exp = "experiments optchoke"
     # main_exp = "experiments scaling factor"
@@ -1820,28 +1823,28 @@ if __name__ == "__main__":
     # main_exp = "experiments relaxed cyclicSPSA/40wells"
     # main_exp = "experiments relaxed cyclicSPSA/12wells"
     # main_exp = "experiments cyclicSPSA/40wells"
-    # main_exp = "experiments cyclicSPSA/12wells"
+    main_exp = "experiments cyclicSPSA/12wells"
     # main_exp = "experiments max stepsize"
     # main_exp = "experiments single wells"
     # main_exp = "experiments ak"
-    # main_exp = "experiments rho high_gl_start"
+    # main_exp = "experiments ak max_ss"
 
     main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    experiments = [e for e in main_path.iterdir() if e.is_dir() if "20.0" in e.name]
+    experiments = [e for e in main_path.iterdir() if e.is_dir()]
 
     # for exp in experiments:
-    #     # plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
     #     plot_production(experiment_name=f"{main_exp}/{exp.name}", highlight=None, only_optimizing_iterations=True, save=False)
-    #     # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
-    #     # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
-    #     # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
-    #     # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
-    # #     # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
-    #     plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
+        # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
+        # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
+        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="scatter", save=False)
+        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=None, type="line", save=False)
+        # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
+        # plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
     
 
     # Average production across experiments in a main folder
-    plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
+    # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
 
     # Compare penalty terms across experiments in different main experiments
     # main_experiments = [
