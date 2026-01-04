@@ -22,7 +22,7 @@ from spsa.utils import save_data, choked_flow, save_fail_log, append_fail_log, s
 
 @dataclass(frozen=True)
 class SPSAConfig:
-    a: float = 0.1          # learning-rate controller
+    a: float = 0.015        # learning-rate controller
     b: float = 0.0          # dual-rate controller NB: Needs to be 0 to disable Lagrangian
     c: float = 0.15         # perturbation magnitude
     A: int   = 5            # stabilizer
@@ -503,17 +503,21 @@ if __name__ == "__main__":
     n_runs = 20
     n_sim = 50
 
-    rhos = [1,2,4,8]
-    stepsizes = [0.1, 0.15]
+    stepsizes = [
+        [0.03, 5, 0.602],
+        [0.015, 5, 0.602],
+          [0.015, 5, 0.301],
+          [0.075, 50, 0.602],
+          [0.0366, 10, 0.502],
+    ]
 
     experiments = [
     {"config": "mixedprod_choke50",
-    "save": f"test/max{ss}_rho_{rho}_water{water}_auglagrangian",
+    "save": f"experiments ak max_ss/a{ss[0]}_A{ss[1]}_alpha{ss[2]}",
     "description": (
-        "Experiment with maximum value on stepsize\n"
+        "Experiment with different step sizes and l_max\n"
         "Augmented Lagrangian SPSA\n"
-        f"Max step size = {ss}\n"
-        f"rho = {rho} | water <= {water}\n"
+        f"Max step size = {0.1}\n"
         "Default mixed production well system\n"
     ),
     "start": "Choke: 0.5 | Gas lift: 0.0",
@@ -522,17 +526,16 @@ if __name__ == "__main__":
     "constraints": replace(
         CONSTRAINT_PRESETS["default"],
         wat_max=20,
-        l_max=ss,
+        l_max=0.1,
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
-        "rho": rho,
-        "b": 0.7,
+        "a": ss[0],
+        "A": ss[1],
+        "alpha": ss[2],
     },
     }
-    for rho in rhos
     for ss in stepsizes
-    for water in [15, 20]
     ]
 
     # ----------- Main script -----------
