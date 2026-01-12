@@ -17,7 +17,7 @@ import manywells.pvt as pvt
 from scripts.ml_examples.data_loader import load_data, load_config
 
 
-def add_noise(df, config, percentage_noise=0.1):
+def add_noise(df, config, percentage_noise=0.1, derive_q=True):
     """
 
     :param df:
@@ -26,11 +26,11 @@ def add_noise(df, config, percentage_noise=0.1):
     :return:
     """
     noise_cols = ['PBH', 'PWH', 'PDC', 'TBH', 'TWH',
-                  'WGL', 'WGAS', 'WLIQ', 'WOIL', 'WWAT', 'WTOT',
-                  'QGL', 'QGAS', 'QLIQ', 'QOIL', 'QWAT', 'QTOT']
+                  'WGL', 'WGAS', 'WLIQ', 'WOIL', 'WWAT', 'WTOT'] + ([
+                  'QGL', 'QGAS', 'QLIQ', 'QOIL', 'QWAT', 'QTOT'] if derive_q else [])
 
     derived_w_cols = ['WLIQ', 'WTOT']
-    derived_q_cols = ['QGL', 'QGAS', 'QLIQ', 'QOIL', 'QWAT', 'QTOT']
+    derived_q_cols = ['QGL', 'QGAS', 'QLIQ', 'QOIL', 'QWAT', 'QTOT'] if derive_q else []
     derived_cols = derived_w_cols + derived_q_cols
 
     noise_df = init_noise_df(df, noise_cols)
@@ -67,7 +67,6 @@ def add_noise(df, config, percentage_noise=0.1):
                 noise_df.loc[mask,col] = noise_df.loc[mask,'WWAT'] / rho_water * 3600
             elif col == 'QTOT':
                 noise_df.loc[mask,col] = noise_df.loc[mask,'WTOT'] / rho_g * 3600
-
 
     df_copy = df.copy()
 

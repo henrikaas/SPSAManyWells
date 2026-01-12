@@ -466,12 +466,18 @@ def plot_average_production(experiments: list[Path],
                             production_types: list[str] | None = ['oil', 'gas-lift', 'water'],
                             iterations: int = 50,
                             only_optimizing_iterations: bool = False,
+                            text: str = "",
                             save: bool = False):
     """
     Compares a set of given experiments by plotting the average production over all runs.
     """
-    fig, axs = plt.subplots(len(production_types), 1, figsize=(13.33, 7.5), sharex=True, constrained_layout=True)
-    # experiments = sorted(experiments, key=lambda e: float(re.search(r'rho(\d+(?:\.\d+)?)', e.name).group(1)))
+    fig_sizes = [(13.33, 5), (13.33, 7.5), (13.33, 10)]
+    fig, axs = plt.subplots(len(production_types), 1, figsize=fig_sizes[len(production_types)-1], sharex=True, constrained_layout=True)
+
+    if "rho" in experiments[0].name and "water" in experiments[0].name:
+        experiments = sorted(experiments, key=lambda e: float(re.search(r'rho(\d+(?:\.\d+)?)', e.name).group(1)))
+    elif "perturb" in experiments[0].name:
+        experiments = sorted(experiments, key=lambda e: float(re.search(r'perturb(\d+(?:\.\d+)?)', e.name).group(1)))
 
     for experiment_dir in experiments:
         info = extract_settings(experiment_dir)
@@ -508,6 +514,10 @@ def plot_average_production(experiments: list[Path],
         if "rho" in experiment_dir.name and "water" in experiment_dir.name:
             label=experiment_dir.name.split("_")[0].replace("rho", "")
             label = f"ρ = {label}"
+        elif "rho" in experiment_dir.name and "perturb" in experiment_dir.name:
+            # label=experiment_dir.name.split("_")[0].replace("rho", "")
+            # label = f"ρ = {label}"
+            label=experiment_dir.name.split("_")[1].replace("perturb", "Size ")
         else:
             label=experiment_dir.name
 
@@ -536,6 +546,8 @@ def plot_average_production(experiments: list[Path],
     if "oil" in production_types:
         # axs[production_types.index("oil")].set_ylim(bottom=62, top=70) # These needs to be set manually, water = 20
         # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
+        axs[production_types.index("oil")].set_ylim(bottom=480, top=550) # These needs to be set manually
+        # axs[production_types.index("oil")].set_ylim(bottom=159, top=180) # These needs to be set manually
 
         axs[production_types.index("oil")].plot(0, info["oil"],
             marker='o',
@@ -544,7 +556,10 @@ def plot_average_production(experiments: list[Path],
             alpha=0.6,
             label="_nolegend_")
     if "gas-lift" in production_types:
-        axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=11) # These needs to be set manually
+        # axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=11) # These needs to be set manually
+        axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=27) # These needs to be set manually
+        # axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=16) # These needs to be set manually
+
 
         axs[production_types.index("gas-lift")].plot(0, info["gaslift"],
             marker='o',
@@ -555,6 +570,8 @@ def plot_average_production(experiments: list[Path],
     if "water" in production_types:
         # axs[production_types.index("water")].set_ylim(bottom=18.5, top=21.5) # These needs to be set manually, water = 20
         # axs[production_types.index("water")].set_ylim(bottom=5, top=21) # These needs to be set manually, water = 15
+        axs[production_types.index("water")].set_ylim(bottom=204, top=225) # These needs to be set manually
+        # axs[production_types.index("water")].set_ylim(bottom=58, top=64) # These needs to be set manually
 
         axs[production_types.index("water")].plot(0, info["water"],
             marker='o',
@@ -580,13 +597,17 @@ def plot_average_production(experiments: list[Path],
     axs[len(production_types)-1].set_xlabel('Iterations')
     axs[len(production_types)-1].set_xlim(left=-1, right=iterations + 1)
 
+    if text == "perturb":
+        max_wells = int(info["constraints"].get("max_wells", n_wells))
+        print_text(axs[0], rf"Subvector size: {max_wells}", (0.02, 0.95), ('top', 'left'), textsize=20)
+
     for ax in axs:
         # ax.legend()
         ax.grid(True)
 
     # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
     # fig.suptitle(experiment_name)
-    axs[0].legend(loc="lower right")
+    axs[0].legend(loc="lower right", ncol=2)
     fig.supylabel("Production Rate (kg/s)")
     if save:
         save_dir = f"{PLOT_DIR}/{experiments[0].parent.name}"
@@ -652,8 +673,9 @@ def plot_production(experiment_name: str,
                     axs[i].plot(water, color='navy', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100) # Water production   
                 axs[i].plot(water, label=f"Production Sequence" if run_idx==0 else "", color='cornflowerblue', alpha=0.8) # Water production
     if "oil" in production_types:
-        axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
+        # axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
         # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
+        axs[production_types.index("oil")].set_ylim(bottom=480, top=560) # These needs to be set manually
         mean_oil = np.mean(np.array(oils), axis=0)
         axs[production_types.index("oil")].plot(mean_oil, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average oil production
         
@@ -704,7 +726,7 @@ def plot_production(experiment_name: str,
             # axs[i].legend(loc="lower right")
         axs[i].set_title(f'{prod_type.capitalize()} Production')
     axs[len(production_types)-1].set_xlabel('Iterations' if only_optimizing_iterations else 'Function Evaluations')
-    axs[len(production_types)-1].set_xlim(left=-1, right=iterations + 1 if only_optimizing_iterations else iterations*3)
+    axs[len(production_types)-1].set_xlim(left=-1, right=iterations + 1 if only_optimizing_iterations else iterations*3+1)
             
 
     # =========================
@@ -720,6 +742,9 @@ def plot_production(experiment_name: str,
         A = info.get('A', 'N/A')
         alpha = info.get('alpha', 'N/A')
         print_text(axs[0], rf"$\frac{{{a}}}{{(k+{A})^{{{alpha}}}}}$", (0.5, 0.05), ('bottom', 'center'), textsize=24)
+    if text == "perturb":
+        max_wells = info["constraints"].get("max_wells", n_wells)
+        print_text(axs[0], rf"Subvector size: {max_wells}", (0.02, 0.95), ('top', 'left'))
     fig.supylabel("Prod. Rate (kg/s)" if len(production_types) == 1 else "Production Rate (kg/s)")
     # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
     # fig.suptitle(experiment_name)
@@ -1648,10 +1673,15 @@ def plot_cumulative_production(experiment_name: str,
         if highlight is not None and i == highlight:
             ax.plot(x, d, color='darkred', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100)
             continue
-        ax.plot(x, d, alpha=0.8, color='lightcoral', label="Other Sequences" if i == 0 else "")
+        ax.plot(x, d, alpha=0.8, color='lightcoral', label="Production Sequences" if i == 0 else "")
 
-    print_text(ax, rf"$\rho = {info['rho']:.1f}$", (0.5, 0.98), ("top", "center"))
+    # print_text(ax, rf"$\rho = {info['rho']:.1f}$", (0.5, 0.98), ("top", "center"))
+    a = info.get('a', 'N/A')
+    A = int(info.get('A', 'N/A'))
+    alpha = info.get('alpha', 'N/A')
+    print_text(ax, rf"$\frac{{{a}}}{{(k+{A})^{{{alpha}}}}}$", (0.5, 0.95), ('top', 'center'), textsize=24)
 
+    ax.set_ylim(-0.06, 0.06)
     ax.legend()
     # fig.suptitle(experiment_name)
     ax.set_xlabel("Function Evaluations" if not only_optimizing_iterations else "Iterations")
@@ -1810,7 +1840,7 @@ def plot_single_well_decision_vector_history_over_contour(
         )
 
         runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
-        cmap_name = "Reds"
+        cmap_name = "YlGnBu"
         for run_idx, run in enumerate(runs):
             experiment_data = load_config(config_path=run, iteration=None)
 
@@ -1900,7 +1930,7 @@ def plot_gain_sequences(save = False):
 
 if __name__ == "__main__":
     # plot_spsa_experiment(experiment_name="experiments ak/a0.1_A5_alpha0.301", only_optimizing_iterations=True) #Used for anlaysing
-    # plot_production(experiment_name="experiments cyclicSPSA/12wells/rho3_perturb6", production_types=["gas-lift"], highlight=None, only_optimizing_iterations=False, save=True) # Used for plotting to paper
+    plot_production(experiment_name="experiments cyclicSPSA/40wells/rho1_perturb1", production_types=["oil"], highlight=None, only_optimizing_iterations=False, save=True) # Used for plotting to paper
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
     # print_production_sequence(experiment_name="experiments ak max_ss/a0.03_A5_alpha0.602_maxstep")
@@ -1910,10 +1940,11 @@ if __name__ == "__main__":
     # plot_mean_function_landscape(experiment_name="grid evaluation", wells=None, sigma=1.0, normalize="local", objective=["WOIL"], save=True)
     # plot_cumulative_production(experiment_name="experiments rho final/rho16.0_water20.0", iteration=50, highlight=10, only_optimizing_iterations=False, save=True)
     # plot_single_well_decision_vector_history_over_contour(
-    #     experiment_name="experiments single wells/well25_constrainTrue",
-    #     contour_name="grid evaluation",
-    #     well_id=25,
-    #     type="scatter"
+    #     experiment_name="experiments single wells/well1_constrainTrue",
+    #     contour_name="grid evaluation mixedprod",
+    #     well_id=1,
+    #     type="line",
+    #     save=True
     # )
 
     # ======= Run this if you want to see a set of experiments within a main folder =======
@@ -1941,19 +1972,19 @@ if __name__ == "__main__":
     # experiments = [e for e in main_path.iterdir() if e.is_dir()]
     experiments = [e for e in main_path.iterdir() if e.is_dir() if any(opt in e.name for opt in opt_12wells)]
 
-    for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-        # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil"], highlight=None, only_optimizing_iterations=True, text = None, save=True)
+    # for exp in experiments:
+        # plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+        # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil"], highlight=None, only_optimizing_iterations=False, text = None, save=True)
         # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
-        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=[1,2,3,4,5,6], type="scatter", save=False)
+        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[0,1,2,3,4,5], only_optimizing_iterations=True, runs=[1,2,3,4,5,6], type="scatter", save=False)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[0, 1, 2], runs=[i for i in range(5)], only_optimizing_iterations=True, type="line", save=True)
         # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
-        plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
+        # plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=True)
     
 
     # Average production across experiments in a main folder
-    plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
+    # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "gas-lift", "water"], save=True)
 
     # Compare penalty terms across experiments in different main experiments
     # main_experiments = [
