@@ -139,6 +139,12 @@ INIT_INFO: dict = {
                     }
         # "opt_prod": 130 # TODO: dont know yet
     },
+    "nsol_set1": {
+        "oil": 115.5,
+        "water": 267,
+        "gaslift": 85,
+        # "opt_prod": 68,
+    },
 }
 
 DEFAULT_INFO = {
@@ -1899,11 +1905,11 @@ def plot_gain_sequences(save = False):
 
 
 if __name__ == "__main__":
-    # plot_spsa_experiment(experiment_name="experiments ak/a0.1_A5_alpha0.301", only_optimizing_iterations=True) #Used for anlaysing
+    plot_spsa_experiment(experiment_name="init_exp", only_optimizing_iterations=True) #Used for anlaysing
     # plot_production(experiment_name="experiments cyclicSPSA/12wells/rho3_perturb6", production_types=["gas-lift"], highlight=None, only_optimizing_iterations=False, save=True) # Used for plotting to paper
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
-    # print_production_sequence(experiment_name="experiments ak max_ss/a0.03_A5_alpha0.602_maxstep")
+    # print_production_sequence(experiment_name="init_exp")
     # plot_decision_vector_history(experiment_name="experiments ak/a0.1_A5_alpha0.301", wells_to_plot=[0, 1, 2], runs=[i for i in range(5)], only_optimizing_iterations=True, type="line", save=False)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
     # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=[1], sigma=1.0, normalize="local", objective=["WOIL"], save=True)
@@ -1937,23 +1943,23 @@ if __name__ == "__main__":
     opt_12wells = ["rho3_perturb1", "rho5_perturb2", "rho3_perturb3", "rho5_perturb4", "rho3_perturb6"]
     opt_40wells = ["rho1_perturb1", "rho1_perturb2", "rho0.5_perturb4", "rho0.5_perturb5", "rho0.5_perturb8", "rho0.5_perturb10"]
 
-    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
     # experiments = [e for e in main_path.iterdir() if e.is_dir()]
-    experiments = [e for e in main_path.iterdir() if e.is_dir() if any(opt in e.name for opt in opt_12wells)]
+    # experiments = [e for e in main_path.iterdir() if e.is_dir() if any(opt in e.name for opt in opt_12wells)]
 
-    for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+    # for exp in experiments:
+    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
         # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil"], highlight=None, only_optimizing_iterations=True, text = None, save=True)
         # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=None, only_optimizing_iterations=True, runs=[1,2,3,4,5,6], type="scatter", save=False)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[0, 1, 2], runs=[i for i in range(5)], only_optimizing_iterations=True, type="line", save=True)
         # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
-        plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
+        # plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
     
 
     # Average production across experiments in a main folder
-    plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
+    # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "water"], save=True)
 
     # Compare penalty terms across experiments in different main experiments
     # main_experiments = [
