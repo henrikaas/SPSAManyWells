@@ -522,7 +522,8 @@ if __name__ == "__main__":
     # assuming wat_max controls the water <= X constraint:
     "constraints": replace(
         CONSTRAINT_PRESETS["default"],
-        wat_max=20,
+        wat_max=3000.0,
+        comb_gl_max=100.0,
         l_max=0.1,
         max_wells=4,
     ),

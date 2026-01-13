@@ -102,6 +102,11 @@ def configure_wells(filepath) -> list[Well]:
                     has_gas_lift=w['has_gas_lift']
         )
 
+        if 'x_last' in w:
+            guess = w['x_last']
+            guess = eval(w['x_last'])  # Convert string representation of list back to list
+            well.x_guesses.append(guess)
+
         wells.append(well)
 
     return wells

@@ -37,7 +37,7 @@ class Well:
 
     has_gas_lift: float  # Removed default value = False
 
-    x_guesses: deque = field(default_factory=lambda: deque(maxlen=10))  # FIFO queue of last guesses for this well
+    x_guesses: deque = field(default_factory=lambda: deque(maxlen=10), init=False)  # FIFO queue of last guesses for this well
 
     def copy(self):
         return deepcopy(self)
