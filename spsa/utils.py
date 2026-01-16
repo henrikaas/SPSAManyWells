@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 import pandas as pd
 import numpy as np
 import os
+from datetime import datetime
 
 from manywells.simulator import SimError, WellProperties, BoundaryConditions
 from scripts.data_generation.well import Well
@@ -19,7 +20,6 @@ from manywells.inflow import Vogel
 from manywells.choke import SimpsonChokeModel
 from spsa.constraints import WellSystemConstraints
 from scripts.data_generation.file_utils import save_well_config_and_data
-from datetime import datetime
 
 
 
@@ -101,6 +101,11 @@ def configure_wells(filepath) -> list[Well]:
                     fractions=(f_g, f_o, f_w),
                     has_gas_lift=w['has_gas_lift']
         )
+
+        if 'x_last' in w:
+            guess = w['x_last']
+            guess = eval(w['x_last'])  # Convert string representation of list back to list
+            well.x_guesses.append(guess)
 
         wells.append(well)
 
@@ -233,23 +238,38 @@ def create_sim_results_df():
 
     return well_data
 
-def calculate_state(well_data: list[pd.DataFrame]):
+def calculate_state(well_data: pd.DataFrame, sigma: float = 0.0):
+    df = well_data
 
-    # Oil production:
-    oil = sum([well['WOIL'].values[-1] for well in well_data])
-    print(f"Oil production: {oil} kg/s")
+    totals = {
+        "WOIL": df["WOIL"].sum(axis=0),
+        "WWAT": df["WWAT"].sum(axis=0),
+        "WGL": df["WGL"].sum(axis=0),
+        "WGAS": df["WGAS"].sum(axis=0),
+    }
 
-    # Water:
-    water = sum([well['WWAT'].values[-1] for well in well_data])
-    print(f"Water production: {water} kg/s")
+    measured = totals.copy()
+    if sigma > 0:
+        for key, value in totals.items():
+            std_dev = (sigma / 100.0) * value
+            measured[key] = value + np.random.normal(0, std_dev)
 
-    # Gas lift:
-    gas_lift = sum([well['WGL'].values[-1] for well in well_data])
-    print(f"Gas lift: {gas_lift} kg/s")
+    oil = measured["WOIL"]
+    water = measured["WWAT"]
+    gas_lift = measured["WGL"]
+    gas = measured["WGAS"]
 
-    # Gas:
-    gas = sum([well['WGAS'].values[-1] for well in well_data])
-    print(f"Gas production (excl. lift gas): {gas} kg/s")
+    print(f"Measured oil production (with noise): {oil} kg/s")
+    print(f"Real oil production: {totals['WOIL']} kg/s")
+
+    print(f"Measured water production (with noise): {water} kg/s")
+    print(f"Real water production: {totals['WWAT']} kg/s")
+
+    print(f"Measured Gas-lift production: {gas_lift} kg/s")
+    print(f"Real gas-lift production: {totals['WGL']} kg/s")
+
+    print(f"Measured gas production (excl. lift gas): {gas} kg/s")
+    print(f"Real gas production: {totals['WGAS']} kg/s")
 
     return {"oil": oil, "water": water, "gas_lift": gas_lift, "gas": gas}
 
@@ -257,7 +277,8 @@ def save_data(wells: list[Well], well_data: pd.DataFrame, main_path: str, k: int
     path = f"{main_path}/iteration_{k}"
 
     for i, well in enumerate(wells):
-        save_well_config_and_data(config=well, data=well_data[i], dataset_version=path)
+        x_last = well.x_guesses[0] if len(well.x_guesses) > 0 else None
+        save_well_config_and_data(config=well, data=well_data[i], x_last=x_last, dataset_version=path)
 
 def save_fail_log(path: str, k: int, fails_per_well: dict[list], success: bool):
     """

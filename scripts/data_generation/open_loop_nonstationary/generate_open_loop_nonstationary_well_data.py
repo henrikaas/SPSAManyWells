@@ -301,11 +301,15 @@ def simulate_ol_ns_many_wells(n_wells: int, n_sim_per_well: int, feedback: bool,
             print(e)
             continue
 
-        try:
-            n_data_last = simulate_open_loop_nonstationary_well(well, n_sim=n_sim_per_well,
-                                                                  dataset_version=dataset_version)
-        except SimError as e:
-            print(e)
+        if well.has_gas_lift == True:
+            try:
+                n_data_last = simulate_open_loop_nonstationary_well(well, n_sim=n_sim_per_well,
+                                                                    dataset_version=dataset_version)
+            except SimError as e:
+                print(e)
+                continue
+        else:
+            print("Well without gas-lift - discarding well")
             continue
 
         n_success += 1  # Count success
@@ -358,9 +362,9 @@ if __name__ == '__main__':
     """
 
     # Simulation settings
-    n_processes = 10    # multiprocessing.cpu_count()
-    n_wells = 2000  # Number of wells to simulate
-    n_sim = 500         # Number of data points to simulate per well
+    n_processes = multiprocessing.cpu_count() -2
+    n_wells = 100  # Number of wells to simulate
+    n_sim = 50    # Number of data points to simulate per well
 
     dataset_version = 'manywells-nsol-1'
     multiprocessing_data_generation_ol(n_wells, n_sim, n_processes, dataset_version)

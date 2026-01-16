@@ -108,7 +108,7 @@ def read_dump(dataset_name='manywells-sol-1', data_path='../../data'):
     df_config.to_csv(c_file_path, index=False)
 
 if __name__ == '__main__':
-    experiment_name = "init_positions" # Change this as needed
+    experiment_name = "nsol_initexp" # Change this as needed
 
     main_path = os.environ["RESULTS_DIR"]
     experiment_path = Path(f"{main_path}/{experiment_name}")

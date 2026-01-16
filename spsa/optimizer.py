@@ -29,7 +29,7 @@ class SPSAConfig:
     alpha: float = 0.602    # learning-rate decay
     beta:  float = 0.602    # dual-rate decay
     gamma: float = 0.051    # perturbation decay
-    sigma: float = 0.0      # noise level for oil evaluation
+    sigma: float = 0.0      # noise level for oil evaluation, percentage
     rho:   float = 8.0      # penalty parameter for penalty method. NB: Needs to be 0 to disable penalty method
 
     def validate(self) -> "SPSAConfig":
@@ -190,17 +190,25 @@ class SPSA:
             print(f"Simulation failed: {e}. Trying guesses...")
         
         guesses = well.x_guesses
-        for i in range(0, len(guesses)):
-            try:
-                simulator.x_guess = guesses[i]
-                x = simulator.simulate()
-                simulator.x_guess = None # Reset the guess if successful simulation
-
-                return x
-            
-            except SimError as e:
-                print(f"Simulation failed: {e}. Trying next guess...")
-                continue
+        if len(guesses) > 0:
+            for i in range(0, len(guesses)):
+                try:
+                    simulator.x_guess = guesses[i]
+                    x = simulator.simulate()
+                    simulator.x_guess = None # Reset the guess if successful simulation
+                    return x
+                
+                except SimError as e:
+                    print(f"Simulation failed: {e}. Trying next guess...")
+                    continue
+        else:
+            for i in range(5):
+                try:
+                    x = simulator.simulate()
+                    return x
+                except SimError as e:
+                    print(f"Simulation failed: {e}. Retrying...")
+                    continue
 
         raise SimError(f"Could not simulate well after {len(guesses)} attempts. No guesses left.")
     
@@ -222,6 +230,7 @@ class SPSA:
             return well_idx, x
         try:
             x = self._single_simulation(simulator=sim, well=well)
+            well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
         except SimError:
             return well_idx, None
 
@@ -270,9 +279,9 @@ class SPSA:
             ck = self.hyperparams.c / (k ** self.hyperparams.gamma)
 
             staged_data = [[] for _ in range(self.n_wells)] # Placeholder for data in current iteration
-            pos_well_data = [] # Reset placeholder for simulation results in positive perturbation
-            neg_well_data = [] # Reset placeholder for simulation results in negative perturbation
-            stat_well_data = [] # Reset placeholder for simulation results in stationary wells
+            pos_well_data = create_sim_results_df() # Reset placeholder for simulation results in positive perturbation
+            neg_well_data = create_sim_results_df() # Reset placeholder for simulation results in negative perturbation
+            stat_well_data = create_sim_results_df() # Reset placeholder for simulation results in stationary wells
 
             # Sample new well conditions
             for idx, well in enumerate(self.wells):
@@ -336,7 +345,7 @@ class SPSA:
                         well.x_guesses.append(x) # Store the result as a guess if simulation was successful
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Pos. Perturbation')
 
-                    pos_well_data.append(dp)
+                    pos_well_data = pd.concat([pos_well_data, dp], ignore_index=True)
                     staged_data[well_idx].append(dp)
                 
                 # Negative perturbation
@@ -365,7 +374,7 @@ class SPSA:
                         well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Neg. Perturbation')
 
-                    neg_well_data.append(dp)
+                    neg_well_data = pd.concat([neg_well_data, dp], ignore_index=True)
                     staged_data[well_idx].append(dp)
 
                 # ============= 3 ==============
@@ -397,14 +406,16 @@ class SPSA:
                         well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Unselected Well')
 
-                    stat_well_data.append(dp)
+                    stat_well_data = pd.concat([stat_well_data, dp], ignore_index=True)
                     staged_data[well_idx].append(dp)
 
                 # ============= 4 ==============
                 # Calculate the state and gradient of the system in both perturbations
                 # ==============================
-                y_pos = calculate_state(well_data=pos_well_data + stat_well_data)
-                y_neg = calculate_state(well_data=neg_well_data + stat_well_data)
+                pos_eval_data = pd.concat([pos_well_data, stat_well_data], ignore_index=True)
+                neg_eval_data = pd.concat([neg_well_data, stat_well_data], ignore_index=True)
+                y_pos = calculate_state(well_data=pos_eval_data, sigma=self.hyperparams.sigma)
+                y_neg = calculate_state(well_data=neg_eval_data, sigma=self.hyperparams.sigma)
 
                 if self.use_cyclic:
                     # Update subvector iteration count
@@ -475,7 +486,10 @@ class SPSA:
             for i in range(self.n_wells):
                 if staged_data[i]:  
                     well_data[i] = pd.concat([well_data[i], *staged_data[i]], ignore_index=True)
-            y_opt = calculate_state(well_data=well_data)
+            
+            last_points = [df.tail(1) for df in well_data if not df.empty]
+            y_opt_df = pd.concat(last_points, ignore_index=True)
+            y_opt = calculate_state(well_data=y_opt_df, sigma=self.hyperparams.sigma)
 
             if k % 10 == 0 and save_path is not None:
                 print(f"Saving state after {k} successful iterations")
@@ -503,39 +517,30 @@ if __name__ == "__main__":
     n_runs = 20
     n_sim = 50
 
-    stepsizes = [
-        [0.03, 5, 0.602],
-        [0.015, 5, 0.602],
-          [0.015, 5, 0.301],
-          [0.075, 50, 0.602],
-          [0.0366, 10, 0.502],
-    ]
-
     experiments = [
-    {"config": "mixedprod_choke50",
-    "save": f"experiments ak max_ss/a{ss[0]}_A{ss[1]}_alpha{ss[2]}",
+    {"config": "nsol_set2",
+    "save": f"nsol_initexp",
     "description": (
-        "Experiment with different step sizes and l_max\n"
-        "Augmented Lagrangian SPSA\n"
-        f"Max step size = {0.1}\n"
-        "Default mixed production well system\n"
+        "Init experiment\n"
+        # "Augmented Lagrangian SPSA\n"
+        # f"Max step size = {0.1}\n"
+        # "Default mixed production well system\n"
     ),
     "start": "Choke: 0.5 | Gas lift: 0.0",
-    "n_wells": 5,
+    "n_wells": 32,
     # assuming wat_max controls the water <= X constraint:
     "constraints": replace(
         CONSTRAINT_PRESETS["default"],
-        wat_max=20,
+        wat_max=3000.0,
+        comb_gl_max=100.0,
         l_max=0.1,
+        max_wells=5,
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
-        "a": ss[0],
-        "A": ss[1],
-        "alpha": ss[2],
+        "sigma": 1.0
     },
     }
-    for ss in stepsizes
     ]
 
     # ----------- Main script -----------
