@@ -139,6 +139,18 @@ INIT_INFO: dict = {
                     }
         # "opt_prod": 130 # TODO: dont know yet
     },
+    "nsol_set1": {
+        "oil": 115.5,
+        "water": 267,
+        "gaslift": 85,
+        # "opt_prod": 68,
+    },
+    "nsol_set2": {
+        "oil": 351.5,
+        "water": 170.0,
+        "gaslift": 73.0,
+        # "opt_prod": 70,
+    }
 }
 
 DEFAULT_INFO = {
@@ -449,7 +461,7 @@ def plot_spsa_experiment(experiment_name: str,
     axs[2].set_xlabel('Simulation Steps')
 
     axs[1].axhline(y=info["constraints"]["comb_gl_max"], color='k', linestyle='--', linewidth=1.5) # Visualize combined gas lift max
-    axs[2].axhline(y=info["constraints"]["wat_max"], color='k', linestyle='--', linewidth=1.5) # Visualize water production max
+    # axs[2].axhline(y=info["constraints"]["wat_max"], color='k', linestyle='--', linewidth=1.5) # Visualize water production max
 
     for ax in axs:
         # ax.legend()
