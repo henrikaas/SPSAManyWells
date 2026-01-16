@@ -277,7 +277,8 @@ def save_data(wells: list[Well], well_data: pd.DataFrame, main_path: str, k: int
     path = f"{main_path}/iteration_{k}"
 
     for i, well in enumerate(wells):
-        save_well_config_and_data(config=well, data=well_data[i], dataset_version=path)
+        x_last = well.x_guesses[0] if len(well.x_guesses) > 0 else None
+        save_well_config_and_data(config=well, data=well_data[i], x_last=x_last, dataset_version=path)
 
 def save_fail_log(path: str, k: int, fails_per_well: dict[list], success: bool):
     """

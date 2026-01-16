@@ -19,10 +19,11 @@ def save_object(obj, filename):
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
 
-def save_well_config_and_data(config, data, dataset_version):
+def save_well_config_and_data(config, data, x_last, dataset_version):
     obj = {
         'config': config,
         'data': data,
+        'last_x': x_last,
     }
 
     script_path = os.path.dirname(os.path.realpath(__file__))

@@ -16,7 +16,7 @@ import pandas as pd
 # Read data files, compile DataFrames and store them as .csv
 ####################################################################
 dataset_name = 'manywells-nsol-1'  # 'manywells-nscl-1'
-data_path = '../../data'
+data_path = '../Simulation tests/datasets'
 dump_path = os.path.join(data_path, dataset_name, 'dump')
 files = [f for f in os.listdir(dump_path) if os.path.isfile(os.path.join(dump_path, f))]
 lst = os.listdir(dump_path) # your directory path

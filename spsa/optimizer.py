@@ -190,17 +190,25 @@ class SPSA:
             print(f"Simulation failed: {e}. Trying guesses...")
         
         guesses = well.x_guesses
-        for i in range(0, len(guesses)):
-            try:
-                simulator.x_guess = guesses[i]
-                x = simulator.simulate()
-                simulator.x_guess = None # Reset the guess if successful simulation
-
-                return x
-            
-            except SimError as e:
-                print(f"Simulation failed: {e}. Trying next guess...")
-                continue
+        if len(guesses) > 0:
+            for i in range(0, len(guesses)):
+                try:
+                    simulator.x_guess = guesses[i]
+                    x = simulator.simulate()
+                    simulator.x_guess = None # Reset the guess if successful simulation
+                    return x
+                
+                except SimError as e:
+                    print(f"Simulation failed: {e}. Trying next guess...")
+                    continue
+        else:
+            for i in range(5):
+                try:
+                    x = simulator.simulate()
+                    return x
+                except SimError as e:
+                    print(f"Simulation failed: {e}. Retrying...")
+                    continue
 
         raise SimError(f"Could not simulate well after {len(guesses)} attempts. No guesses left.")
     
@@ -222,6 +230,7 @@ class SPSA:
             return well_idx, x
         try:
             x = self._single_simulation(simulator=sim, well=well)
+            well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
         except SimError:
             return well_idx, None
 
@@ -509,8 +518,8 @@ if __name__ == "__main__":
     n_sim = 50
 
     experiments = [
-    {"config": "nsol_set1",
-    "save": f"init_exp",
+    {"config": "nsol_set2",
+    "save": f"nsol_initexp",
     "description": (
         "Init experiment\n"
         # "Augmented Lagrangian SPSA\n"
@@ -525,11 +534,11 @@ if __name__ == "__main__":
         wat_max=3000.0,
         comb_gl_max=100.0,
         l_max=0.1,
-        max_wells=4,
+        max_wells=5,
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
-        "sigma": 2.0
+        "sigma": 1.0
     },
     }
     ]
