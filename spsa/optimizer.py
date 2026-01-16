@@ -146,6 +146,30 @@ class SPSA:
         np.random.shuffle(indices)
         subvectors = [indices[i:i + max_wells].tolist() for i in range(0, self.n_wells, max_wells)]
         return subvectors
+
+    def _validate_subvectors(self, subvectors: list[list[int]]) -> list[list[int]]:
+        """
+        Validate user-provided subvectors for cyclic SPSA.
+        """
+        if not isinstance(subvectors, list) or not subvectors:
+            raise ValueError("subvectors must be a non-empty list of lists")
+
+        max_wells = self.constraints.max_wells
+        validated = []
+        for subvector in subvectors:
+            if not isinstance(subvector, list) or not subvector:
+                raise ValueError("Each subvector must be a non-empty list of well indices")
+            if len(subvector) > max_wells:
+                raise ValueError(f"Subvector size {len(subvector)} exceeds max_wells={max_wells}")
+            if len(set(subvector)) != len(subvector):
+                raise ValueError(f"Subvector contains duplicate indices: {subvector}")
+            for idx in subvector:
+                if not isinstance(idx, (int, np.integer)):
+                    raise ValueError(f"Subvector index must be int, got {type(idx)}")
+                if idx < 0 or idx >= self.n_wells:
+                    raise ValueError(f"Subvector index out of range: {idx}")
+            validated.append(subvector)
+        return validated
     
     def _generate_perturbation(self, ck: float, u: float, gl: float, has_gl: bool):
         """
@@ -227,13 +251,23 @@ class SPSA:
 
         return well_idx, x
     
-    def optimize(self, n_sim: int = 50, starting_k: int = 0, save_path: str = None):
+    def optimize(
+        self,
+        n_sim: int = 50,
+        starting_k: int = 0,
+        save_path: str = None,
+        *,
+        subvectors: list[list[int]] | None = None,
+        subvector_sequence: list[int] | None = None,
+    ):
         """
         Run the SPSA optimization algorithm.
         Args:
             n_sim (int): Number of simulations to run.
             starting_k (int): Starting iteration number (useful for resuming).
             save_path (str): Path to save the results. If None, results are not saved.
+            subvectors (list[list[int]] | None): Explicit subvectors for cyclic SPSA.
+            subvector_sequence (list[int] | None): Index into subvectors for each iteration.
         """
 
         well_idxs = np.arange(0, self.n_wells)
@@ -242,9 +276,14 @@ class SPSA:
 
         n_sim_wells = self.constraints.max_wells
         if self.use_cyclic:
-            pert_vectors = self._draw_subvector() # Draw the subvectors for cyclic SPSA
+            if subvectors is not None:
+                pert_vectors = self._validate_subvectors(subvectors)
+            else:
+                pert_vectors = self._draw_subvector() # Draw the subvectors for cyclic SPSA
             subvector_k = [0 for _ in range(len(pert_vectors))] # Track iteration number for each subvector, used for the a_k step size calculation
         else:
+            if subvectors is not None or subvector_sequence is not None:
+                raise ValueError("subvectors/subvector_sequence only apply when cyclic SPSA is enabled")
             pert_vectors = [list(range(self.n_wells))] # Single vector with all wells
         # Create data point storage
         well_data = [create_sim_results_df() for _ in range(self.n_wells)]
@@ -286,7 +325,16 @@ class SPSA:
             # Perturb the system
             # Draw perturbation vector and simulate in each direction
             # ==============================
-            chosen_wells_idxs = random.choice(pert_vectors)
+            if subvector_sequence is not None:
+                seq_idx = k - (starting_k + 1)
+                if seq_idx < 0 or seq_idx >= len(subvector_sequence):
+                    raise ValueError("subvector_sequence must have an entry for every iteration in this run")
+                subvector_idx = subvector_sequence[seq_idx]
+                if subvector_idx < 0 or subvector_idx >= len(pert_vectors):
+                    raise ValueError(f"subvector_sequence index out of range: {subvector_idx}")
+                chosen_wells_idxs = pert_vectors[subvector_idx]
+            else:
+                chosen_wells_idxs = random.choice(pert_vectors)
             unselected_well_idxs = list(set(well_idxs) - set(chosen_wells_idxs))
             cur_state = np.array([[self.wells[idx].bc.u, self.wells[idx].bc.w_lg] for idx in chosen_wells_idxs]) # Current state of the decision vector in the chosen wells
 
