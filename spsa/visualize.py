@@ -145,6 +145,12 @@ INIT_INFO: dict = {
         "gaslift": 85,
         # "opt_prod": 68,
     },
+    "nsol_set2": {
+        "oil": 351.5,
+        "water": 170.0,
+        "gaslift": 73.0,
+        # "opt_prod": 70,
+    }
 }
 
 DEFAULT_INFO = {
@@ -455,7 +461,7 @@ def plot_spsa_experiment(experiment_name: str,
     axs[2].set_xlabel('Simulation Steps')
 
     axs[1].axhline(y=info["constraints"]["comb_gl_max"], color='k', linestyle='--', linewidth=1.5) # Visualize combined gas lift max
-    axs[2].axhline(y=info["constraints"]["wat_max"], color='k', linestyle='--', linewidth=1.5) # Visualize water production max
+    # axs[2].axhline(y=info["constraints"]["wat_max"], color='k', linestyle='--', linewidth=1.5) # Visualize water production max
 
     for ax in axs:
         # ax.legend()
@@ -1909,7 +1915,7 @@ if __name__ == "__main__":
     # plot_production(experiment_name="experiments cyclicSPSA/12wells/rho3_perturb6", production_types=["gas-lift"], highlight=None, only_optimizing_iterations=False, save=True) # Used for plotting to paper
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
-    # print_production_sequence(experiment_name="init_exp")
+    # print_production_sequence(experiment_name="nsol_initexp")
     # plot_decision_vector_history(experiment_name="experiments ak/a0.1_A5_alpha0.301", wells_to_plot=[0, 1, 2], runs=[i for i in range(5)], only_optimizing_iterations=True, type="line", save=False)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
     # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=[1], sigma=1.0, normalize="local", objective=["WOIL"], save=True)
