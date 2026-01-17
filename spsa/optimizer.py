@@ -514,11 +514,11 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 20
+    n_runs = 5
     n_sim = 50
 
     experiments = [
-    {"config": "nsol_set2",
+    {"config": "nsol_choke50",
     "save": f"nsol_initexp",
     "description": (
         "Init experiment\n"
@@ -534,11 +534,10 @@ if __name__ == "__main__":
         wat_max=3000.0,
         comb_gl_max=100.0,
         l_max=0.1,
-        max_wells=5,
+        max_wells=4,
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
-        "sigma": 1.0
     },
     }
     ]
