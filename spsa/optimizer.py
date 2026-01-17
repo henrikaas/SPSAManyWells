@@ -551,40 +551,32 @@ if __name__ == "__main__":
     n_runs = 20
     n_sim = 50
 
-    stepsizes = [
-        [0.03, 5, 0.602],
-        [0.015, 5, 0.602],
-          [0.015, 5, 0.301],
-          [0.075, 50, 0.602],
-          [0.0366, 10, 0.502],
-    ]
-
     experiments = [
-    {"config": "mixedprod_choke50",
-    "save": f"experiments ak max_ss/a{ss[0]}_A{ss[1]}_alpha{ss[2]}",
+    {"config": "nsol_choke50",
+    "save": f"nsol_initexp",
     "description": (
-        "Experiment with different step sizes and l_max\n"
-        "Augmented Lagrangian SPSA\n"
-        f"Max step size = {0.1}\n"
-        "Default mixed production well system\n"
+        "Init experiment\n"
+        # "Augmented Lagrangian SPSA\n"
+        # f"Max step size = {0.1}\n"
+        # "Default mixed production well system\n"
     ),
     "start": "Choke: 0.5 | Gas lift: 0.0",
-    "n_wells": 5,
+    "n_wells": 32,
     # assuming wat_max controls the water <= X constraint:
     "constraints": replace(
         CONSTRAINT_PRESETS["default"],
-        wat_max=20,
+        wat_max=3000.0,
+        comb_gl_max=100.0,
         l_max=0.1,
+        max_wells=4,
     ),
     "hyperparams": HYPERPARAM_PRESETS["default"],
     "hyperparam_overrides": {
-        "a": ss[0],
-        "A": ss[1],
-        "alpha": ss[2],
     },
     }
-    for ss in stepsizes
     ]
+    subvectors = [[1, 19, 23, 11], [10, 25, 14, 20], [30, 26, 9, 6], [0, 24, 17, 27], [4, 8, 5, 12], [15, 2, 29, 16], [22, 31, 28, 7], [18, 13, 3, 21]]
+    subvector_sequence = [7, 6, 1, 2, 2, 2, 5, 2, 7, 7, 4, 5, 1, 6, 4, 3, 4, 5, 6, 3, 2, 6, 2, 3, 5, 5, 1, 7, 7, 3, 3, 4, 7, 6, 1, 4, 4, 5, 3, 7, 7, 2, 7, 3, 2, 7, 7, 2, 5, 2]
 
     # ----------- Main script -----------
     work_dir, results_dir = create_dirs(experiments, n_runs)
