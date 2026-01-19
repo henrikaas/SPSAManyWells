@@ -49,6 +49,7 @@ BERNOULLI_DIRECTIONS = [-1, 1]
 HYPERPARAM_PRESETS: dict[str, SPSAConfig] = {
     "default": SPSAConfig(),
     "slower_ak": SPSAConfig(a=0.15, A=5, alpha=0.502),
+    "promising": SPSAConfig(a=0.0375, A=10, alpha=0.502, c=0.15, gamma=0.051, b=0.4, beta=0.502)
     # TODO: Tune these presets
     # "robust":  SPSAConfig(a=0.1, c=0.2, A=100, alpha=0.2, beta=0.5, sigma=0.1, rho=0.1),
     # "fast":    SPSAConfig(a=0.5, c=0.05, A=10,  alpha=0.4, beta=0.7, sigma=0.0, rho=0.0),
@@ -59,6 +60,7 @@ CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
     "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
     "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
     "relaxed_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=1000, max_wells=5),
+    "32_wells": WellSystemConstraints(gl_max = 5.0, comb_gl_max=40, wat_max=200.0, max_wells=4, l_max=0.1)
     # TODO: Define more presets
     # "strict":  WellSystemConstraints(gl_max=100, comb_gl_max=200, wat_max=300, max_wells=5),
 }
@@ -146,6 +148,30 @@ class SPSA:
         np.random.shuffle(indices)
         subvectors = [indices[i:i + max_wells].tolist() for i in range(0, self.n_wells, max_wells)]
         return subvectors
+    
+    def _validate_subvectors(self, subvectors: list[list[int]]) -> list[list[int]]:
+        """
+        Validate user-provided subvectors for cyclic SPSA.
+        """
+        if not isinstance(subvectors, list) or not subvectors:
+            raise ValueError("subvectors must be a non-empty list of lists")
+
+        max_wells = self.constraints.max_wells
+        validated = []
+        for subvector in subvectors:
+            if not isinstance(subvector, list) or not subvector:
+                raise ValueError("Each subvector must be a non-empty list of well indices")
+            if len(subvector) > max_wells:
+                raise ValueError(f"Subvector size {len(subvector)} exceeds max_wells={max_wells}")
+            if len(set(subvector)) != len(subvector):
+                raise ValueError(f"Subvector contains duplicate indices: {subvector}")
+            for idx in subvector:
+                if not isinstance(idx, (int, np.integer)):
+                    raise ValueError(f"Subvector index must be int, got {type(idx)}")
+                if idx < 0 or idx >= self.n_wells:
+                    raise ValueError(f"Subvector index out of range: {idx}")
+            validated.append(subvector)
+        return validated
     
     def _generate_perturbation(self, ck: float, u: float, gl: float, has_gl: bool):
         """
@@ -236,7 +262,10 @@ class SPSA:
 
         return well_idx, x
     
-    def optimize(self, n_sim: int = 50, starting_k: int = 0, save_path: str = None):
+    def optimize(self, n_sim: int = 50, starting_k: int = 0, save_path: str = None,
+                 *,
+                 subvectors: list[list[int]] | None = None,
+                 subvector_sequence: list[int] | None = None,):
         """
         Run the SPSA optimization algorithm.
         Args:
@@ -251,7 +280,10 @@ class SPSA:
 
         n_sim_wells = self.constraints.max_wells
         if self.use_cyclic:
-            pert_vectors = self._draw_subvector() # Draw the subvectors for cyclic SPSA
+            if subvectors is not None:
+                pert_vectors = self._validate_subvectors(subvectors)
+            else:
+                pert_vectors = self._draw_subvector() # Draw the subvectors for cyclic SPSA
             subvector_k = [0 for _ in range(len(pert_vectors))] # Track iteration number for each subvector, used for the a_k step size calculation
         else:
             pert_vectors = [list(range(self.n_wells))] # Single vector with all wells
@@ -295,7 +327,16 @@ class SPSA:
             # Perturb the system
             # Draw perturbation vector and simulate in each direction
             # ==============================
-            chosen_wells_idxs = random.choice(pert_vectors)
+            if subvector_sequence is not None:
+                seq_idx = k - 1
+                if seq_idx < 0 or seq_idx >= len(subvector_sequence):
+                    raise ValueError("subvector_sequence must have an entry for every iteration in this run")
+                subvector_idx = subvector_sequence[seq_idx]
+                if subvector_idx < 0 or subvector_idx >= len(pert_vectors):
+                    raise ValueError(f"subvector_sequence index out of range: {subvector_idx}")
+                chosen_wells_idxs = pert_vectors[subvector_idx]
+            else:
+                chosen_wells_idxs = random.choice(pert_vectors)
             unselected_well_idxs = list(set(well_idxs) - set(chosen_wells_idxs))
             cur_state = np.array([[self.wells[idx].bc.u, self.wells[idx].bc.w_lg] for idx in chosen_wells_idxs]) # Current state of the decision vector in the chosen wells
 
@@ -491,7 +532,7 @@ class SPSA:
             y_opt_df = pd.concat(last_points, ignore_index=True)
             y_opt = calculate_state(well_data=y_opt_df, sigma=self.hyperparams.sigma)
 
-            if k % 10 == 0 and save_path is not None:
+            if k % 25 == 0 and save_path is not None:
                 print(f"Saving state after {k} successful iterations")
                 save_data(self.wells, well_data=well_data, main_path=save_path, k=k)
 
@@ -501,7 +542,7 @@ class SPSA:
 
         if save_path is not None:
             print(f"Saving final state after {k-1} successful iterations")
-            if (k - 1) % 10 != 0:
+            if (k - 1) % 25 != 0:
                 # Save data stream
                 save_data(self.wells, well_data=well_data, main_path=save_path, k=k-1)
             # Save failure log
@@ -514,33 +555,39 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 5
+    n_runs = 60
     n_sim = 50
 
+    subvectors = [
+        [[1, 19, 23, 11], [10, 25, 14, 20], [30, 26, 9, 6], [0, 24, 17, 27], [4, 8, 5, 12], [15, 2, 29, 16], [22, 31, 28, 7], [18, 13, 3, 21]],
+        [[2, 31, 22, 24], [29, 13, 14, 0], [9, 25, 12, 16], [30, 23, 3, 27], [21, 1, 6, 17], [19, 7, 15, 11], [28, 10, 4, 20], [5, 18, 8, 26]],
+    ]
+    subvector_sequences = [
+        [0, 3, 2, 3, 7, 2, 3, 4, 2, 2, 3, 3, 2, 6, 1, 2, 2, 5, 6, 2, 7, 0, 1, 3, 5, 2, 4, 5, 1, 3, 2, 3, 1, 3, 2, 2, 5, 0, 4, 7, 5, 6, 6, 4, 6, 0, 7, 0, 7, 3],
+        [1, 0, 2, 6, 7, 6, 6, 3, 0, 3, 7, 0, 2, 2, 6, 5, 7, 1, 2, 2, 3, 0, 0, 5, 1, 1, 4, 3, 3, 2, 2, 6, 4, 0, 1, 5, 2, 2, 6, 5, 6, 2, 2, 4, 7, 2, 2, 7, 0, 4],
+    ]
+    
     experiments = [
     {"config": "nsol_choke50",
-    "save": f"nsol_initexp",
+    "save": f"experiments nsol initial/sequence{i}",
     "description": (
         "Init experiment\n"
         # "Augmented Lagrangian SPSA\n"
         # f"Max step size = {0.1}\n"
         # "Default mixed production well system\n"
     ),
-    "start": "Choke: 0.5 | Gas lift: 0.0",
+    "start": "Choke: 0.5 | Gas lift: 1.0",
     "n_wells": 32,
     # assuming wat_max controls the water <= X constraint:
-    "constraints": replace(
-        CONSTRAINT_PRESETS["default"],
-        wat_max=3000.0,
-        comb_gl_max=100.0,
-        l_max=0.1,
-        max_wells=4,
-    ),
-    "hyperparams": HYPERPARAM_PRESETS["default"],
+    "constraints": CONSTRAINT_PRESETS["32_wells"],
+    "hyperparams": HYPERPARAM_PRESETS["promising"],
     "hyperparam_overrides": {
+        "rho": 0.7,
     },
+    "subvector": subvectors[i],
+    "subvector_sequence": subvector_sequences[i],
     }
-    ]
+    for i in [0,1]]
 
     # ----------- Main script -----------
     work_dir, results_dir = create_dirs(experiments, n_runs)
@@ -571,7 +618,9 @@ if __name__ == "__main__":
             
             try:
                 spsaopt.optimize(n_sim=n_sim,
-                                 save_path=os.path.join(results_dir, experiment['save'], f"run{run_id}")
+                                 save_path=os.path.join(results_dir, experiment['save'], f"run{run_id}"),
+                                    subvectors=experiment['subvector'],
+                                    subvector_sequence=experiment['subvector_sequence'],
                 )
             except SimError as e:
                 print(f"Simulation {run_id} failed: {e}")
