@@ -8,12 +8,12 @@ Erlend Lundby, erlend@solutionseeker.no
 """
 
 import numpy as np
-
+from collections import deque
 
 class InitGuess:
     def __init__(self, downscale_pr=350, min_rate=3.0, min_distance_threshold=0.05):
         self.downscale_pr = downscale_pr
-        self.x0_candidates = list()
+        self.x0_candidates = deque(maxlen=30)
         self.minimum_flowrate = min_rate
         self.min_distance_threshold = min_distance_threshold
 

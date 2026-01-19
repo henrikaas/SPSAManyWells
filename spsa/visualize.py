@@ -693,7 +693,7 @@ def plot_production(experiment_name: str,
     if "oil" in production_types:
         # axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
         # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
-        axs[production_types.index("oil")].set_ylim(bottom=480, top=560) # These needs to be set manually
+        # axs[production_types.index("oil")].set_ylim(bottom=480, top=560) # These needs to be set manually
         mean_oil = np.mean(np.array(oils), axis=0)
         axs[production_types.index("oil")].plot(mean_oil, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average oil production
         
@@ -705,7 +705,7 @@ def plot_production(experiment_name: str,
             label="_nolegend_")
 
     if "gas-lift" in production_types:
-        axs[production_types.index("gas-lift")].set_ylim(bottom=-0.1, top=17) # These needs to be set manually
+        # axs[production_types.index("gas-lift")].set_ylim(bottom=-0.1, top=17) # These needs to be set manually
         mean_gl = np.mean(np.array(gls), axis=0)
         axs[production_types.index("gas-lift")].plot(mean_gl, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average gas-lift production
 
@@ -716,7 +716,7 @@ def plot_production(experiment_name: str,
             alpha=0.6,
             label="_nolegend_")
     if "water" in production_types:
-        axs[production_types.index("water")].set_ylim(top=22) # These needs to be set manually, water = 20
+        # axs[production_types.index("water")].set_ylim(top=22) # These needs to be set manually, water = 20
         # axs[production_types.index("water")].set_ylim(bottom=5, top=21) # These needs to be set manually, water = 15
         mean_water = np.mean(np.array(waters), axis=0)
         axs[production_types.index("water")].plot(mean_water, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average water production
@@ -1947,7 +1947,7 @@ def plot_gain_sequences(save = False):
 
 
 if __name__ == "__main__":
-    # plot_spsa_experiment(experiment_name="nsol_initexp", only_optimizing_iterations=False) #Used for anlaysing
+    # plot_spsa_experiment(experiment_name="rand_init_positions", only_optimizing_iterations=False) #Used for anlaysing
     # plot_production(experiment_name="experiments cyclicSPSA/40wells/rho1_perturb1", production_types=["oil"], highlight=None, only_optimizing_iterations=False, save=True) # Used for plotting to paper
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
@@ -1991,8 +1991,8 @@ if __name__ == "__main__":
     # experiments = [e for e in main_path.iterdir() if e.is_dir() if any(opt in e.name for opt in opt_12wells)]
 
     for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-        # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil"], highlight=None, only_optimizing_iterations=False, text = None, save=True)
+        # plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+        plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil", "gas-lift", "water"], highlight=None, only_optimizing_iterations=True, text = None, save=False)
         # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[0,1,2,3,4,5], only_optimizing_iterations=True, runs=[1,2,3,4,5,6], type="scatter", save=False)

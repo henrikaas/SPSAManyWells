@@ -86,6 +86,8 @@ def read_dump(dataset_name='manywells-sol-1', data_path='../../data'):
             'fraction.water': c.fractions[2],
             'has_gas_lift': c.has_gas_lift,
         }
+        if 'last_x' in obj:
+            c_dict['x_last'] = obj["last_x"]
         df_config_i = pd.DataFrame([c_dict])
         df_config = pd.concat([df_config, df_config_i], ignore_index=True)
 
@@ -108,33 +110,33 @@ def read_dump(dataset_name='manywells-sol-1', data_path='../../data'):
     df_config.to_csv(c_file_path, index=False)
 
 if __name__ == '__main__':
-    experiment_name = "nsol_initexp" # Change this as needed
+    # experiment_name = "rand_init_positions" # Change this as needed
 
-    main_path = os.environ["RESULTS_DIR"]
-    experiment_path = Path(f"{main_path}/{experiment_name}")
+    # main_path = os.environ["RESULTS_DIR"]
+    # experiment_path = Path(f"{main_path}{experiment_name}")
 
-    runs = [r for r in experiment_path.iterdir() if r.is_dir()]
+    # runs = [r for r in experiment_path.iterdir() if r.is_dir()]
 
-    for run in runs:
-        files = list(run.glob("iteration_*"))
+    # for run in runs:
+    #     files = list(run.glob("iteration_*"))
 
-        for file in files:
-            read_dump(dataset_name=file.name, data_path=run)
+    #     for file in files:
+    #         read_dump(dataset_name=file.name, data_path=run)
 
 
     # ------------- If you want to run on all experiments within a main folder -------------
-    # main_exp = "experiments single wells" # Change this as needed
+    main_exp = "experiments nsol initial" # Change this as needed
 
-    # main_path = os.environ["RESULTS_DIR"]
-    # experiment_path = Path(f"{main_path}/{main_exp}")
+    main_path = os.environ["RESULTS_DIR"]
+    experiment_path = Path(f"{main_path}/{main_exp}")
 
-    # sub_experiments = [e for e in experiment_path.iterdir() if e.is_dir()]
+    sub_experiments = [e for e in experiment_path.iterdir() if e.is_dir()]
 
-    # for exp in sub_experiments:
-    #     runs = [r for r in exp.iterdir() if r.is_dir()]
+    for exp in sub_experiments:
+        runs = [r for r in exp.iterdir() if r.is_dir()]
 
-    #     for run in runs:
-    #         files = list(run.glob("iteration_*"))
+        for run in runs:
+            files = list(run.glob("iteration_*"))
 
-    #         for file in files:
-    #             read_dump(dataset_name=file.name, data_path=run)
+            for file in files:
+                read_dump(dataset_name=file.name, data_path=run)

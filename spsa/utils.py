@@ -13,7 +13,7 @@ import numpy as np
 import os
 from datetime import datetime
 
-from manywells.simulator import SimError, WellProperties, BoundaryConditions
+from manywells.simulator import SimError, WellProperties, BoundaryConditions, SSDFSimulator
 from scripts.data_generation.well import Well
 import manywells.pvt as pvt
 from manywells.inflow import Vogel
@@ -105,7 +105,8 @@ def configure_wells(filepath) -> list[Well]:
         if 'x_last' in w:
             guess = w['x_last']
             guess = eval(w['x_last'])  # Convert string representation of list back to list
-            well.x_guesses.append(guess)
+            sim = SSDFSimulator(well.wp, well.bc)
+            well.x_guesses.add_candidate(guess, sim, well)
 
         wells.append(well)
 

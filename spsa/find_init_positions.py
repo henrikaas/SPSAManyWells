@@ -7,6 +7,7 @@ save the simulation results at each iteration.
 - Moves choke by 0.025 and gas lift by 0.125 per iteration toward the target
 - Saves data for every iteration
 - If a simulation fails, uses the last valid data point for that well
+- Optional random-walk mode moves in random directions for a fixed number of iterations
 """
 
 from __future__ import annotations
@@ -72,6 +73,11 @@ def _step_towards(value: float, target: float, step: float, *, lower: float, upp
         next_value = max(value - step, target)
     return float(np.clip(next_value, lower, upper))
 
+def _step_random(value: float, step: float, *, lower: float, upper: float, rng: np.random.Generator) -> float:
+    direction = 1.0 if rng.integers(0, 2) == 1 else -1.0
+    next_value = value + direction * step
+    return float(np.clip(next_value, lower, upper))
+
 def _simulate_well(
     well: Well,
     sim: SSDFSimulator,
@@ -133,19 +139,28 @@ def walk_init_positions(
     target_gas_lift: float = 1.0,
     step_choke: float = 0.025,
     step_gas_lift: float = 0.125,
+    random_walk: bool = False,
+    random_iters: Optional[int] = None,
+    rng: Optional[np.random.Generator] = None,
 ) -> None:
     well_data = [create_sim_results_df() for _ in wells]
     last_valid = [None for _ in wells]
 
-    def steps_needed(well: Well) -> int:
-        u_steps = int(np.ceil(abs(target_choke - well.bc.u) / step_choke))
-        if well.has_gas_lift:
-            gl_steps = int(np.ceil(abs(target_gas_lift - well.bc.w_lg) / step_gas_lift))
-        else:
-            gl_steps = 0
-        return max(u_steps, gl_steps)
+    if random_walk:
+        if random_iters is None or random_iters < 1:
+            raise ValueError("random_iters must be >= 1 when random_walk is enabled.")
+        total_iters = random_iters
+        rng = rng or np.random.default_rng()
+    else:
+        def steps_needed(well: Well) -> int:
+            u_steps = int(np.ceil(abs(target_choke - well.bc.u) / step_choke))
+            if well.has_gas_lift:
+                gl_steps = int(np.ceil(abs(target_gas_lift - well.bc.w_lg) / step_gas_lift))
+            else:
+                gl_steps = 0
+            return max(u_steps, gl_steps)
 
-    total_iters = max(steps_needed(w) for w in wells)
+        total_iters = max(steps_needed(w) for w in wells)
 
     with mp.Pool(processes=min(len(wells), max(1, mp.cpu_count() - 1))) as pool:
         _run_iteration(wells, well_data, last_valid, "Init walk", pool)
@@ -153,18 +168,23 @@ def walk_init_positions(
 
         for k in range(1, total_iters + 1):
             for well in wells:
-                well.bc.u = _step_towards(well.bc.u, target_choke, step_choke, lower=0.0, upper=1.0)
-                if well.has_gas_lift:
-                    well.bc.w_lg = _step_towards(well.bc.w_lg, target_gas_lift, step_gas_lift, lower=0.0, upper=5.0)
+                if random_walk:
+                    well.bc.u = _step_random(well.bc.u, step_choke, lower=0.0, upper=1.0, rng=rng)
+                    if well.has_gas_lift:
+                        well.bc.w_lg = _step_random(well.bc.w_lg, step_gas_lift, lower=0.0, upper=5.0, rng=rng)
+                else:
+                    well.bc.u = _step_towards(well.bc.u, target_choke, step_choke, lower=0.0, upper=1.0)
+                    if well.has_gas_lift:
+                        well.bc.w_lg = _step_towards(well.bc.w_lg, target_gas_lift, step_gas_lift, lower=0.0, upper=5.0)
 
             _run_iteration(wells, well_data, last_valid, "Init walk", pool)
-            save_data(wells, well_data=well_data, main_path=save_path, k=k)
+        save_data(wells, well_data=well_data, main_path=save_path, k=k)
 
 
 if __name__ == "__main__":
     n_runs = 1
     experiment = [{"config": "nsol_set2",
-        "save": "init_positions",
+        "save": "low_init_positions",
         }]
     work_dir, results_dir = create_dirs(experiment, n_runs)
 
@@ -172,4 +192,6 @@ if __name__ == "__main__":
                                     os.path.join(work_dir, "config files", f"{experiment[0]['config']}.csv"))
 
     walk_init_positions(wells,
-                        save_path=os.path.join(results_dir, experiment[0]['save'], f"run{0}"))
+                        save_path=os.path.join(results_dir, experiment[0]['save'], f"run{0}"),
+                        target_choke=0.1,
+                        target_gas_lift=0.0)

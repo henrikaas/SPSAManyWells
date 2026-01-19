@@ -49,7 +49,7 @@ BERNOULLI_DIRECTIONS = [-1, 1]
 HYPERPARAM_PRESETS: dict[str, SPSAConfig] = {
     "default": SPSAConfig(),
     "slower_ak": SPSAConfig(a=0.15, A=5, alpha=0.502),
-    "promising": SPSAConfig(a=0.0375, A=10, alpha=0.502, c=0.15, gamma=0.051, b=0.4, beta=0.502)
+    "promising": SPSAConfig(a=0.0375, A=10, alpha=0.502, c=0.15, gamma=0.051, b=0.5, beta=0.502)
     # TODO: Tune these presets
     # "robust":  SPSAConfig(a=0.1, c=0.2, A=100, alpha=0.2, beta=0.5, sigma=0.1, rho=0.1),
     # "fast":    SPSAConfig(a=0.5, c=0.05, A=10,  alpha=0.4, beta=0.7, sigma=0.0, rho=0.0),
@@ -215,7 +215,17 @@ class SPSA:
         except SimError as e:
             print(f"Simulation failed: {e}. Trying guesses...")
         
-        guesses = well.x_guesses
+        try:
+            guess = well.x_guesses.closest_candidate(well)
+            if guess is not None:
+                simulator.x_guess = guess
+                x = simulator.simulate()
+                simulator.x_guess = None # Reset the guess if successful simulation
+                return x
+        except SimError as e:
+            print(f"Simulation with init guess failed: {e}. Trying stored guesses...")
+        
+        guesses = well.x_guesses.x0_candidates
         if len(guesses) > 0:
             for i in range(0, len(guesses)):
                 try:
@@ -256,7 +266,7 @@ class SPSA:
             return well_idx, x
         try:
             x = self._single_simulation(simulator=sim, well=well)
-            well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
+            well.x_guesses.add_candidate(x, sim, well)  # Store the result as a guess if simulation was successful
         except SimError:
             return well_idx, None
 
@@ -383,7 +393,6 @@ class SPSA:
                         fails_per_well[key] = append_fail_log(fails_per_well[key], self.wells[well_idx], k)
                         raise SimError(f"Simulation failed for well {well_idx}")
                     else:
-                        well.x_guesses.append(x) # Store the result as a guess if simulation was successful
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Pos. Perturbation')
 
                     pos_well_data = pd.concat([pos_well_data, dp], ignore_index=True)
@@ -412,7 +421,6 @@ class SPSA:
                         fails_per_well[key] = append_fail_log(fails_per_well[key], self.wells[well_idx], k)
                         raise SimError(f"Simulation failed for well {well_idx}")
                     else:
-                        well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Neg. Perturbation')
 
                     neg_well_data = pd.concat([neg_well_data, dp], ignore_index=True)
@@ -444,7 +452,6 @@ class SPSA:
                         fails_per_well[key] = append_fail_log(fails_per_well[key], self.wells[well_idx], k)
                         raise SimError(f"Simulation failed for well {well_idx}")
                     else:
-                        well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Unselected Well')
 
                     stat_well_data = pd.concat([stat_well_data, dp], ignore_index=True)
@@ -501,7 +508,6 @@ class SPSA:
                         fails_per_well[key] = append_fail_log(fails_per_well[key], self.wells[well_idx], k)
                         raise SimError(f"Simulation failed for well {well_idx}")
                     else:
-                        well.x_guesses.append(x)  # Store the result as a guess if simulation was successful
                         dp = create_data_point(well=well, sim=simulators[well_idx], x=x, sim_type='Optimizing')
 
                     staged_data[well_idx].append(dp)
@@ -555,21 +561,23 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 60
+    n_runs = 50
     n_sim = 50
 
     subvectors = [
         [[1, 19, 23, 11], [10, 25, 14, 20], [30, 26, 9, 6], [0, 24, 17, 27], [4, 8, 5, 12], [15, 2, 29, 16], [22, 31, 28, 7], [18, 13, 3, 21]],
         [[2, 31, 22, 24], [29, 13, 14, 0], [9, 25, 12, 16], [30, 23, 3, 27], [21, 1, 6, 17], [19, 7, 15, 11], [28, 10, 4, 20], [5, 18, 8, 26]],
+        [[6, 20, 7, 31], [11, 12, 0, 5], [27, 3, 28, 13], [22, 9, 21, 1], [23, 8, 26, 4], [16, 15, 17, 24], [25, 10, 2, 18], [14, 29, 19, 30]],
     ]
     subvector_sequences = [
         [0, 3, 2, 3, 7, 2, 3, 4, 2, 2, 3, 3, 2, 6, 1, 2, 2, 5, 6, 2, 7, 0, 1, 3, 5, 2, 4, 5, 1, 3, 2, 3, 1, 3, 2, 2, 5, 0, 4, 7, 5, 6, 6, 4, 6, 0, 7, 0, 7, 3],
         [1, 0, 2, 6, 7, 6, 6, 3, 0, 3, 7, 0, 2, 2, 6, 5, 7, 1, 2, 2, 3, 0, 0, 5, 1, 1, 4, 3, 3, 2, 2, 6, 4, 0, 1, 5, 2, 2, 6, 5, 6, 2, 2, 4, 7, 2, 2, 7, 0, 4],
+        [5, 6, 4, 5, 4, 5, 6, 7, 3, 6, 4, 0, 5, 4, 5, 5, 7, 2, 4, 5, 4, 0, 2, 5, 1, 3, 4, 7, 3, 0, 2, 0, 1, 5, 7, 0, 2, 4, 2, 7, 1, 0, 1, 4, 2, 4, 2, 3, 0, 0],
     ]
     
     experiments = [
     {"config": "nsol_choke50",
-    "save": f"experiments nsol initial/sequence{i}",
+    "save": f"experiments nsol initial v2/sequence{i}",
     "description": (
         "Init experiment\n"
         # "Augmented Lagrangian SPSA\n"
@@ -582,12 +590,12 @@ if __name__ == "__main__":
     "constraints": CONSTRAINT_PRESETS["32_wells"],
     "hyperparams": HYPERPARAM_PRESETS["promising"],
     "hyperparam_overrides": {
-        "rho": 0.7,
+        "rho": 0.5,
     },
     "subvector": subvectors[i],
     "subvector_sequence": subvector_sequences[i],
     }
-    for i in [0,1]]
+    for i in [0,2]]
 
     # ----------- Main script -----------
     work_dir, results_dir = create_dirs(experiments, n_runs)
