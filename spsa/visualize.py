@@ -150,7 +150,13 @@ INIT_INFO: dict = {
         "water": 170.0,
         "gaslift": 73.0,
         # "opt_prod": 70,
-    }
+    },
+    "nsol_choke50": {
+        "oil": 376,
+        "water": 191,
+        "gaslift": 32,
+        # "opt_prod": 68,
+    },
 }
 
 DEFAULT_INFO = {
@@ -1941,11 +1947,11 @@ def plot_gain_sequences(save = False):
 
 
 if __name__ == "__main__":
-    # plot_spsa_experiment(experiment_name="nsol_initexp", only_optimizing_iterations=True) #Used for anlaysing
+    # plot_spsa_experiment(experiment_name="nsol_initexp", only_optimizing_iterations=False) #Used for anlaysing
     # plot_production(experiment_name="experiments cyclicSPSA/40wells/rho1_perturb1", production_types=["oil"], highlight=None, only_optimizing_iterations=False, save=True) # Used for plotting to paper
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
-    print_production_sequence(experiment_name="nsol_initexp")
+    # print_production_sequence(experiment_name="nsol_initexp")
     # plot_decision_vector_history(experiment_name="experiments ak/a0.1_A5_alpha0.301", wells_to_plot=[0, 1, 2], runs=[i for i in range(5)], only_optimizing_iterations=True, type="line", save=False)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
     # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=[1], sigma=1.0, normalize="local", objective=["WOIL"], save=True)
@@ -1973,18 +1979,19 @@ if __name__ == "__main__":
     # main_exp = "experiments cyclicSPSA/12wells"
     # main_exp = "experiments max stepsize"
     # main_exp = "experiments single wells"
-    main_exp = "experiments ak"
+    # main_exp = "experiments ak"
     # main_exp = "experiments ak max_ss"
+    main_exp = "experiments nsol initial"
 
     opt_12wells = ["rho3_perturb1", "rho5_perturb2", "rho3_perturb3", "rho5_perturb4", "rho3_perturb6"]
     opt_40wells = ["rho1_perturb1", "rho1_perturb2", "rho0.5_perturb4", "rho0.5_perturb5", "rho0.5_perturb8", "rho0.5_perturb10"]
 
-    # main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
-    # experiments = [e for e in main_path.iterdir() if e.is_dir()]
+    main_path = Path(f"{os.environ['RESULTS_DIR']}/{main_exp}")
+    experiments = [e for e in main_path.iterdir() if e.is_dir()]
     # experiments = [e for e in main_path.iterdir() if e.is_dir() if any(opt in e.name for opt in opt_12wells)]
 
-    # for exp in experiments:
-    #     plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=False, save=False)
+    for exp in experiments:
+        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
         # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil"], highlight=None, only_optimizing_iterations=False, text = None, save=True)
         # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
