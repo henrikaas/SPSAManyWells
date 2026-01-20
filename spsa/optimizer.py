@@ -229,7 +229,7 @@ class SPSA:
         if len(guesses) > 0:
             for i in range(0, len(guesses)):
                 try:
-                    simulator.x_guess = guesses[i]
+                    simulator.x_guess = guesses[i]['x_guess']
                     x = simulator.simulate()
                     simulator.x_guess = None # Reset the guess if successful simulation
                     return x
@@ -577,7 +577,7 @@ if __name__ == "__main__":
     
     experiments = [
     {"config": "nsol_choke50",
-    "save": f"experiments nsol initial v2/sequence{i}",
+    "save": f"experiments nsol v2/sequence{i}",
     "description": (
         "Init experiment\n"
         # "Augmented Lagrangian SPSA\n"
