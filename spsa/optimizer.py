@@ -58,9 +58,9 @@ CONSTRAINT_PRESETS: dict[str, WellSystemConstraints] = {
     "default": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=20.0, max_wells=5, l_max = 0.2),
     "strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=10.0, max_wells=5),
     "a_bit_strict_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=15.0, max_wells=5),
-    "relaxed": WellSystemConstraints(gl_max=1000, comb_gl_max=1000, wat_max=1000, max_wells=1000),
+    "relaxed": WellSystemConstraints(gl_max=5, comb_gl_max=1000, wat_max=1000, max_wells=1000),
     "relaxed_water": WellSystemConstraints(gl_max=5.0, comb_gl_max=10.0, wat_max=1000, max_wells=5),
-    "32_wells": WellSystemConstraints(gl_max = 5.0, comb_gl_max=40, wat_max=200.0, max_wells=4, l_max=0.1)
+    "32_wells": WellSystemConstraints(gl_max = 5.0, comb_gl_max=40, wat_max=190.0, max_wells=4, l_max=0.1)
     # TODO: Define more presets
     # "strict":  WellSystemConstraints(gl_max=100, comb_gl_max=200, wat_max=300, max_wells=5),
 }
@@ -225,11 +225,11 @@ class SPSA:
         except SimError as e:
             print(f"Simulation with init guess failed: {e}. Trying stored guesses...")
         
-        guesses = well.x_guesses.x0_candidates
+        guesses = well.x_guesses.last_candidates
         if len(guesses) > 0:
             for i in range(0, len(guesses)):
                 try:
-                    simulator.x_guess = guesses[i]['x_guess']
+                    simulator.x_guess = guesses[i]
                     x = simulator.simulate()
                     simulator.x_guess = None # Reset the guess if successful simulation
                     return x
@@ -561,28 +561,34 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 50
+    n_runs = 75
     n_sim = 50
 
-    subvectors = [
-        [[1, 19, 23, 11], [10, 25, 14, 20], [30, 26, 9, 6], [0, 24, 17, 27], [4, 8, 5, 12], [15, 2, 29, 16], [22, 31, 28, 7], [18, 13, 3, 21]],
-        [[2, 31, 22, 24], [29, 13, 14, 0], [9, 25, 12, 16], [30, 23, 3, 27], [21, 1, 6, 17], [19, 7, 15, 11], [28, 10, 4, 20], [5, 18, 8, 26]],
-        [[6, 20, 7, 31], [11, 12, 0, 5], [27, 3, 28, 13], [22, 9, 21, 1], [23, 8, 26, 4], [16, 15, 17, 24], [25, 10, 2, 18], [14, 29, 19, 30]],
-    ]
-    subvector_sequences = [
-        [0, 3, 2, 3, 7, 2, 3, 4, 2, 2, 3, 3, 2, 6, 1, 2, 2, 5, 6, 2, 7, 0, 1, 3, 5, 2, 4, 5, 1, 3, 2, 3, 1, 3, 2, 2, 5, 0, 4, 7, 5, 6, 6, 4, 6, 0, 7, 0, 7, 3],
-        [1, 0, 2, 6, 7, 6, 6, 3, 0, 3, 7, 0, 2, 2, 6, 5, 7, 1, 2, 2, 3, 0, 0, 5, 1, 1, 4, 3, 3, 2, 2, 6, 4, 0, 1, 5, 2, 2, 6, 5, 6, 2, 2, 4, 7, 2, 2, 7, 0, 4],
-        [5, 6, 4, 5, 4, 5, 6, 7, 3, 6, 4, 0, 5, 4, 5, 5, 7, 2, 4, 5, 4, 0, 2, 5, 1, 3, 4, 7, 3, 0, 2, 0, 1, 5, 7, 0, 2, 4, 2, 7, 1, 0, 1, 4, 2, 4, 2, 3, 0, 0],
-    ]
+    subvectors = {24: [[[12, 15, 21, 8], [23, 16, 0, 20], [4, 6, 1, 11], [3, 10, 22, 17], [18, 7, 5, 14], [9, 2, 19, 13]],
+                       [[15, 6, 17, 21], [22, 18, 4, 0], [2, 5, 10, 19], [11, 23, 7, 8], [14, 16, 13, 3], [1, 12, 20, 9]],
+                       [[12, 8, 15, 10], [1, 21, 3, 5], [16, 4, 7, 11], [19, 22, 13, 20], [0, 14, 9, 17], [6, 18, 2, 23]]],
+
+                  32: [[[1, 19, 23, 11], [10, 25, 14, 20], [30, 26, 9, 6], [0, 24, 17, 27], [4, 8, 5, 12], [15, 2, 29, 16], [22, 31, 28, 7], [18, 13, 3, 21]],
+                        [[2, 31, 22, 24], [29, 13, 14, 0], [9, 25, 12, 16], [30, 23, 3, 27], [21, 1, 6, 17], [19, 7, 15, 11], [28, 10, 4, 20], [5, 18, 8, 26]],
+                        [[6, 20, 7, 31], [11, 12, 0, 5], [27, 3, 28, 13], [22, 9, 21, 1], [23, 8, 26, 4], [16, 15, 17, 24], [25, 10, 2, 18], [14, 29, 19, 30]],]
+    }
+    subvector_sequences = {24: [[2, 4, 5, 0, 5, 0, 4, 0, 0, 4, 2, 3, 1, 3, 4, 5, 2, 4, 0, 0, 0, 0, 5, 3, 4, 3, 2, 3, 3, 4, 5, 4, 5, 0, 5, 4, 3, 5, 1, 2, 2, 0, 0, 5, 0, 2, 4, 0, 3, 3],
+                                [0, 5, 2, 3, 2, 1, 3, 2, 1, 5, 0, 0, 5, 3, 4, 2, 4, 5, 4, 5, 2, 1, 4, 0, 1, 3, 4, 5, 0, 0, 2, 5, 1, 1, 1, 3, 0, 2, 3, 4, 2, 4, 4, 5, 1, 2, 0, 4, 1, 0],
+                                [4, 3, 2, 4, 4, 3, 1, 3, 5, 5, 2, 1, 5, 4, 3, 5, 2, 1, 0, 5, 5, 2, 0, 3, 3, 4, 0, 5, 1, 0, 1, 1, 2, 0, 1, 1, 3, 5, 1, 1, 3, 0, 5, 0, 3, 4, 4, 1, 2, 5]],
+
+                           32: [[0, 3, 2, 3, 7, 2, 3, 4, 2, 2, 3, 3, 2, 6, 1, 2, 2, 5, 6, 2, 7, 0, 1, 3, 5, 2, 4, 5, 1, 3, 2, 3, 1, 3, 2, 2, 5, 0, 4, 7, 5, 6, 6, 4, 6, 0, 7, 0, 7, 3],
+                                [1, 0, 2, 6, 7, 6, 6, 3, 0, 3, 7, 0, 2, 2, 6, 5, 7, 1, 2, 2, 3, 0, 0, 5, 1, 1, 4, 3, 3, 2, 2, 6, 4, 0, 1, 5, 2, 2, 6, 5, 6, 2, 2, 4, 7, 2, 2, 7, 0, 4],
+                                [5, 6, 4, 5, 4, 5, 6, 7, 3, 6, 4, 0, 5, 4, 5, 5, 7, 2, 4, 5, 4, 0, 2, 5, 1, 3, 4, 7, 3, 0, 2, 0, 1, 5, 7, 0, 2, 4, 2, 7, 1, 0, 1, 4, 2, 4, 2, 3, 0, 0]]
+    }
     
     experiments = [
-    {"config": "nsol_choke50",
-    "save": f"experiments nsol v2/sequence{i}",
+    {"config": f"nsol_32wells_choke50",
+    "save": f"experiments nsol noise/subvector_{i}",
     "description": (
-        "Init experiment\n"
-        # "Augmented Lagrangian SPSA\n"
-        # f"Max step size = {0.1}\n"
-        # "Default mixed production well system\n"
+        "Noise experiment\n"
+        "Augmented Lagrangian SPSA\n"
+        f"Default mixed production well system with size 32\n"
+
     ),
     "start": "Choke: 0.5 | Gas lift: 1.0",
     "n_wells": 32,
@@ -591,11 +597,13 @@ if __name__ == "__main__":
     "hyperparams": HYPERPARAM_PRESETS["promising"],
     "hyperparam_overrides": {
         "rho": 0.5,
+        "sigma": 4.0,
     },
-    "subvector": subvectors[i],
-    "subvector_sequence": subvector_sequences[i],
+    "subvector": subvectors[32][i],
+    "subvector_sequence": subvector_sequences[32][i],
     }
-    for i in [0,2]]
+    for i in [0,1,2]
+    ]
 
     # ----------- Main script -----------
     work_dir, results_dir = create_dirs(experiments, n_runs)

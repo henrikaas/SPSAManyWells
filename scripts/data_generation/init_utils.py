@@ -11,9 +11,10 @@ import numpy as np
 from collections import deque
 
 class InitGuess:
-    def __init__(self, downscale_pr=350, min_rate=3.0, min_distance_threshold=0.05):
+    def __init__(self, downscale_pr=350, min_rate=3.0, min_distance_threshold=0.025):
         self.downscale_pr = downscale_pr
-        self.x0_candidates = deque(maxlen=30)
+        self.x0_candidates = deque(maxlen=5)
+        self.last_candidates = deque(maxlen=20)
         self.minimum_flowrate = min_rate
         self.min_distance_threshold = min_distance_threshold
 
@@ -116,3 +117,5 @@ class InitGuess:
         x_guess_candidate = self.create_candidate(x_guess, sim, well)
         if x_guess_candidate is not None:
             self.x0_candidates.append(x_guess_candidate)
+        if x_guess not in self.last_candidates:
+            self.last_candidates.append(x_guess)

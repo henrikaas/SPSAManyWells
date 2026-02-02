@@ -38,7 +38,7 @@ class Well:
 
     has_gas_lift: float  # Removed default value = False
 
-    x_guesses: InitGuess = field(default_factory=lambda: InitGuess(min_rate=0.0), init=False)  # FIFO queue of previous guesses
+    x_guesses: InitGuess = field(default_factory=lambda: InitGuess(min_rate=0.0, min_distance_threshold=0.0), init=False)  # FIFO queue of previous guesses
 
     def copy(self):
         return deepcopy(self)

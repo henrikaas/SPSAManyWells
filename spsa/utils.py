@@ -310,7 +310,7 @@ def save_fail_log(path: str, k: int, fails_per_well: dict[list], success: bool):
             f.write(f"---------------------------\n\n")
 
 def append_fail_log(fail_log: list[str], well: Well, k: int):
-    fail_msg = f"Failure {len(fail_log) +1} at iteration {k} with u={well.bc.u}, gl={well.bc.w_lg}\n"
+    fail_msg = f"Failure {len(fail_log) +1} at iteration {k} with u={well.bc.u}, gl={well.bc.w_lg}. Length of guesses: {len(well.x_guesses.last_candidates)}\n"
     fail_log.append(fail_msg)
     return fail_log
 
