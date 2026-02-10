@@ -583,9 +583,10 @@ if __name__ == "__main__":
     
     experiments = [
     {"config": f"nsol_32wells_choke50",
-    "save": f"experiments nsol noise/subvector_{i}",
+    "save": f"experiments nsol oilandgas/subvector_{i}",
     "description": (
-        "Noise experiment\n"
+        "Experiment with change in objective function\n"
+        "Obj func: 0.6 gas + 0.4 oil"
         "Augmented Lagrangian SPSA\n"
         f"Default mixed production well system with size 32\n"
 
@@ -597,12 +598,11 @@ if __name__ == "__main__":
     "hyperparams": HYPERPARAM_PRESETS["promising"],
     "hyperparam_overrides": {
         "rho": 0.5,
-        "sigma": 4.0,
     },
     "subvector": subvectors[32][i],
     "subvector_sequence": subvector_sequences[32][i],
     }
-    for i in [0,1,2]
+    for i in [0,1]
     ]
 
     # ----------- Main script -----------
