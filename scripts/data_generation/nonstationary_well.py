@@ -20,11 +20,12 @@ from scripts.data_generation.well import Well, sample_well
 
 
 class NonStationaryBehavior:
-    def __init__(self, pr_init, ps_init,  init_fractions):
-        self.lifetime = np.random.uniform(10,20)
+    def __init__(self, pr_init, ps_init, init_fractions, rng: np.random.Generator | None = None):
+        self.rng = rng or np.random.default_rng()
+        self.lifetime = self.rng.uniform(10, 20)
         self.pr_init = pr_init
         self.ps_init = ps_init
-        self.pr_conv = pr_init - np.random.uniform(pr_init*0.2, pr_init*0.4)
+        self.pr_conv = pr_init - self.rng.uniform(pr_init * 0.2, pr_init * 0.4)
         self.eps: float = 0.01
         self.decay_rate: float = 1 - np.exp(np.log(self.eps)/self.lifetime)  # Equals 1 - self.eps ** (1/self.lifetime)
         self.decay_rate_noise_factor = self.decay_rate/20
@@ -36,16 +37,16 @@ class NonStationaryBehavior:
 
     def reservoir_pressure(self, i):
         years = i/52  # Sampling rate 1/week
-        decay_noise = np.random.uniform(-self.decay_rate_noise_factor,self.decay_rate_noise_factor)
+        decay_noise = self.rng.uniform(-self.decay_rate_noise_factor, self.decay_rate_noise_factor)
         self.decay_rate += decay_noise
         self.decay_rate = np.maximum(0.1,np.minimum(0.9,self.decay_rate))
         return (self.pr_init - self.pr_conv)*(1 - self.decay_rate)**years + self.pr_conv
 
 
     def decay_fractions(self):
-        decay_g = np.random.uniform(self.init_fractions[0]/2,self.init_fractions[0])
+        decay_g = self.rng.uniform(self.init_fractions[0]/2, self.init_fractions[0])
         decay_g = decay_g/self.lifetime
-        decay_o = np.random.uniform(self.init_fractions[1]/2,self.init_fractions[1])
+        decay_o = self.rng.uniform(self.init_fractions[1]/2, self.init_fractions[1])
         decay_o = decay_o/self.lifetime
         return decay_g, decay_o
 
@@ -53,8 +54,8 @@ class NonStationaryBehavior:
         f_g = 1
         f_o = 1
         while f_g + f_o > 0.999:
-            f_g = np.minimum(0.99, np.maximum(fractions[0] - self.decay_g / 52 + np.random.normal(0, 0.015), 0.002))
-            f_o = np.minimum(0.99, np.maximum(fractions[1] - self.decay_o / 52 + np.random.normal(0, 0.015), 0.002))
+            f_g = np.minimum(0.99, np.maximum(fractions[0] - self.decay_g / 52 + self.rng.normal(0, 0.015), 0.002))
+            f_o = np.minimum(0.99, np.maximum(fractions[1] - self.decay_o / 52 + self.rng.normal(0, 0.015), 0.002))
         return f_g, f_o
 
     def mass_fractions(self, fractions, delta_i):
@@ -94,15 +95,15 @@ class NonStationaryWell(Well):
         self.wp.cp_l = liquid_mix.cp
         self.wp.inflow.f_g = f_g
         self.bc.p_r = self.ns_bhv.reservoir_pressure(i)
-        self.bc.p_s = np.random.uniform(0.9 * self.ns_bhv.ps_init, 1.1 * self.ns_bhv.ps_init)
+        self.bc.p_s = self.ns_bhv.rng.uniform(0.9 * self.ns_bhv.ps_init, 1.1 * self.ns_bhv.ps_init)
 
         if not self.feedback:
-            self.bc.u = np.random.uniform(0.05, 1)
+            self.bc.u = self.ns_bhv.rng.uniform(0.05, 1)
             if self.has_gas_lift:
-                self.bc.w_lg = np.random.uniform(0, 5)
+                self.bc.w_lg = self.ns_bhv.rng.uniform(0, 5)
 
 
-def sample_nonstationary_well(feedback: bool) -> NonStationaryWell:
+def sample_nonstationary_well(feedback: bool, rng: np.random.Generator | None = None) -> NonStationaryWell:
     """
     Sample a nonstationary well
     """
@@ -117,11 +118,10 @@ def sample_nonstationary_well(feedback: bool) -> NonStationaryWell:
     f_g, f_o, f_w = well.fractions
 
     # pr_convergence = bc.p_r - np.random.uniform(9,15)
-    ns_bhv = NonStationaryBehavior(pr_init=bc.p_r, ps_init=bc.p_s, init_fractions=(f_g, f_o, f_w))
+    ns_bhv = NonStationaryBehavior(pr_init=bc.p_r, ps_init=bc.p_s, init_fractions=(f_g, f_o, f_w), rng=rng)
 
     # Create Well object
     nonstationary_well = NonStationaryWell(wp=wp, bc=bc, ns_bhv=ns_bhv, gas=well.gas, oil=well.oil, water=well.water,
                                            fractions=(f_g, f_o, f_w), has_gas_lift=well.has_gas_lift, feedback=feedback)
 
     return nonstationary_well
-

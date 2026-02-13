@@ -184,11 +184,11 @@ def walk_init_positions(
     target_choke: float = 0.5,
     target_gas_lift: float = 1.0,
     step_choke: float = 0.025,
-    step_gas_lift: float = 0.125,
+    step_gas_lift: float = 0.1,
     random_walk: bool = False,
     random_iters: Optional[int] = None,
     rng: Optional[np.random.Generator] = None,
-    combined_gas_lift_max: Optional[float] = None,
+    combined_gas_lift_max: Optional[float] = 40,
 ) -> None:
     well_data = [create_sim_results_df() for _ in wells]
     last_valid = [None for _ in wells]
@@ -226,9 +226,9 @@ def walk_init_positions(
                     continue
                 prev_states[idx] = (well.bc.u, well.bc.w_lg)
                 if random_walk:
-                    well.bc.u = _step_random(well.bc.u, step_choke, lower=0.0, upper=1.0, rng=rng)
+                    well.bc.u = _step_random(well.bc.u, step_choke, lower=0.25, upper=1.0, rng=rng)
                     if well.has_gas_lift:
-                        well.bc.w_lg = _step_random(well.bc.w_lg, step_gas_lift, lower=0.0, upper=5.0, rng=rng)
+                        well.bc.w_lg = _step_random(well.bc.w_lg, step_gas_lift, lower=0.25, upper=5.0, rng=rng)
                 else:
                     well.bc.u = _step_towards(well.bc.u, target_choke, step_choke, lower=0.0, upper=1.0)
                     if well.has_gas_lift:
@@ -274,7 +274,7 @@ def walk_init_positions(
 if __name__ == "__main__":
     n_runs = 1
     experiment = [{"config": "nsol_32wells_choke50-new",
-        "save": "nsol_32wells_choke50-new",
+        "save": "nsol_32wells_random",
         }]
     work_dir, results_dir = create_dirs(experiment, n_runs)
 
@@ -283,5 +283,5 @@ if __name__ == "__main__":
 
     walk_init_positions(wells,
                         save_path=os.path.join(results_dir, experiment[0]['save'], f"run{0}"),
-                        target_choke=0.5,
-                        target_gas_lift=1.0,)
+                        random_walk=True,
+                        random_iters=100)

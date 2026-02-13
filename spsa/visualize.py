@@ -479,7 +479,7 @@ def plot_spsa_experiment(experiment_name: str,
     axs[2].set_xlabel('Simulation Steps')
 
     axs[1].axhline(y=info["constraints"]["comb_gl_max"], color='k', linestyle='--', linewidth=1.5) # Visualize combined gas lift max
-    # axs[2].axhline(y=info["constraints"]["wat_max"], color='k', linestyle='--', linewidth=1.5) # Visualize water production max
+    axs[2].axhline(y=info["constraints"]["wat_max"], color='k', linestyle='--', linewidth=1.5) # Visualize water production max
 
     for ax in axs:
         # ax.legend()
@@ -1963,7 +1963,7 @@ if __name__ == "__main__":
     # plot_production(experiment_name="experiments cyclicSPSA/40wells/rho1_perturb1", production_types=["oil"], highlight=None, only_optimizing_iterations=False, save=True) # Used for plotting to paper
     # plot_decision_vector(experiment_name="experiments fixed gradient gain sequence/rho4_water20")
     # plot_decision_vector_series(experiment_name="experiments rho v3/rho2_water20")
-    print_production_sequence(experiment_name="experiments nsol noise/subvector_0")
+    # print_production_sequence(experiment_name="experiments nsol noise/subvector_0")
     # plot_decision_vector_history(experiment_name="experiments ak/a0.1_A5_alpha0.301", wells_to_plot=[0, 1, 2], runs=[i for i in range(5)], only_optimizing_iterations=True, type="line", save=False)
     # plot_step_size(experiment_name="experiments rho v3/rho8_water20", n_runs=10, iteration=50, save=True)
     # plot_multiple_function_landscapes(experiment_name="grid evaluation mixedprod", wells=[1], sigma=1.0, normalize="local", objective=["WOIL"], save=True)
@@ -1994,8 +1994,9 @@ if __name__ == "__main__":
     # main_exp = "experiments ak"
     # main_exp = "experiments ak max_ss"
     # main_exp = "experiments nsol initial"
-    main_exp = "experiments nsol noise"
+    # main_exp = "experiments nsol noise"
     # main_exp = "experiments nsol relaxed (debug)/32wells"
+    main_exp = "experiments nsol oilandgas"
 
     opt_12wells = ["rho3_perturb1", "rho5_perturb2", "rho3_perturb3", "rho5_perturb4", "rho3_perturb6"]
     opt_40wells = ["rho1_perturb1", "rho1_perturb2", "rho0.5_perturb4", "rho0.5_perturb5", "rho0.5_perturb8", "rho0.5_perturb10"]

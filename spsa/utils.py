@@ -15,6 +15,7 @@ from datetime import datetime
 
 from manywells.simulator import SimError, WellProperties, BoundaryConditions, SSDFSimulator
 from scripts.data_generation.well import Well
+from scripts.data_generation.nonstationary_well import NonStationaryBehavior, NonStationaryWell
 import manywells.pvt as pvt
 from manywells.inflow import Vogel
 from manywells.choke import SimpsonChokeModel
@@ -104,6 +105,108 @@ def configure_wells(filepath) -> list[Well]:
 
         if 'x_last' in w:
             guess = w['x_last']
+            guess = eval(w['x_last'])  # Convert string representation of list back to list
+            sim = SSDFSimulator(well.wp, well.bc)
+            well.x_guesses.add_candidate(guess, sim, well)
+
+        wells.append(well)
+
+    return wells
+
+def configure_nonstationary_wells(filepath, *, feedback: bool = False, base_seed: int = None) -> list[NonStationaryWell]:
+    """
+    Loads a nonstationary well configuration file and configures the wells.
+
+    Requires ns_bhv.* columns in the config CSV.
+    """
+    config_dataset = load_well_configs(filepath)
+
+    wells: list[NonStationaryWell] = []
+    for i, w in config_dataset.iterrows():
+        well_properties = WellProperties(
+            L = w['wp.L'],
+            D = w['wp.D'],
+            rho_l = w['wp.rho_l'],
+            R_s = w['wp.R_s'],
+            cp_g = w['wp.cp_g'],
+            cp_l = w['wp.cp_l'],
+            f_D = w['wp.f_D'],
+            h = w['wp.h'],
+        )
+
+        if w['wp.inflow.class_name'] == 'Vogel':
+            inflow = Vogel(
+                w_l_max = w['wp.inflow.w_l_max'],
+                f_g = w['wp.inflow.f_g']
+            )
+            well_properties.inflow = inflow
+        else:
+            print('Inflow Model name not "Vogel"')
+        
+        if w['wp.choke.class_name'] == 'SimpsonChokeModel':
+            choke = SimpsonChokeModel(
+                K_c = w['wp.choke.K_c'],
+                chk_profile = w['wp.choke.chk_profile']
+            )
+            well_properties.choke = choke
+        else:
+            print('Choke Model name not SimpsonChokeModel')
+
+        boundary_conditions = BoundaryConditions(
+            p_r = w['bc.p_r'],
+            p_s = w['bc.p_s'],
+            T_r = w['bc.T_r'],
+            T_s = w['bc.T_s'],
+            u = w['bc.u'],
+            w_lg = w['bc.w_lg']
+        )
+
+        gas = pvt.GasProperties(
+            name = 'gas',
+            R_s = w['gas.R_s'],
+            cp = w['gas.cp']
+        )
+
+        oil = pvt.LiquidProperties(
+            name = 'oil',
+            rho = w['oil.rho'],
+            cp = w['oil.cp']
+        )
+
+        water = pvt.WATER
+
+        f_g = w['fraction.gas']
+        f_o = w['fraction.oil']
+        f_w = w['fraction.water']
+
+        ns_bhv = NonStationaryBehavior(
+            pr_init = w['ns_bhv.pr_init'],
+            ps_init = w['ns_bhv.ps_init'],
+            init_fractions = eval(w['ns_bhv.init_fractions']) if isinstance(w['ns_bhv.init_fractions'], str) else w['ns_bhv.init_fractions'],
+            rng = np.random.default_rng(base_seed + i) if base_seed is not None else None
+        )
+        ns_bhv.lifetime = w['ns_bhv.lifetime']
+        ns_bhv.pr_conv = w['ns_bhv.pr_conv']
+        ns_bhv.eps = w['ns_bhv.eps']
+        ns_bhv.decay_rate = w['ns_bhv.decay_rate']
+        ns_bhv.decay_rate_noise_factor = w['ns_bhv.decay_rate_noise_factor']
+        ns_bhv.init_fractions = w['ns_bhv.init_fractions']
+        ns_bhv.decay_g = w['ns_bhv.decay_g']
+        ns_bhv.decay_o = w['ns_bhv.decay_o']
+
+        well = NonStationaryWell(
+            wp=well_properties,
+            bc=boundary_conditions,
+            ns_bhv=ns_bhv,
+            gas=gas,
+            oil=oil,
+            water=water,
+            fractions=(f_g, f_o, f_w),
+            has_gas_lift=w['has_gas_lift'],
+            feedback=feedback
+        )
+
+        if 'x_last' in w:
             guess = eval(w['x_last'])  # Convert string representation of list back to list
             sim = SSDFSimulator(well.wp, well.bc)
             well.x_guesses.add_candidate(guess, sim, well)

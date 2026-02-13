@@ -580,29 +580,30 @@ if __name__ == "__main__":
                                 [1, 0, 2, 6, 7, 6, 6, 3, 0, 3, 7, 0, 2, 2, 6, 5, 7, 1, 2, 2, 3, 0, 0, 5, 1, 1, 4, 3, 3, 2, 2, 6, 4, 0, 1, 5, 2, 2, 6, 5, 6, 2, 2, 4, 7, 2, 2, 7, 0, 4],
                                 [5, 6, 4, 5, 4, 5, 6, 7, 3, 6, 4, 0, 5, 4, 5, 5, 7, 2, 4, 5, 4, 0, 2, 5, 1, 3, 4, 7, 3, 0, 2, 0, 1, 5, 7, 0, 2, 4, 2, 7, 1, 0, 1, 4, 2, 4, 2, 3, 0, 0]]
     }
+    config_files = ["nsol_32wells_randchoke", "nsol_32wells_optchoke"]
     
     experiments = [
     {"config": f"nsol_32wells_choke50",
-    "save": f"experiments nsol noise/subvector_{i}",
+    "save": f"experiments nsol noise/subvector{i}",
     "description": (
-        "Noise experiment\n"
+        "Noise levels experiment\n"
         "Augmented Lagrangian SPSA\n"
         f"Default mixed production well system with size 32\n"
 
     ),
-    "start": "Choke: 0.5 | Gas lift: 1.0",
+    "start": "choke 0.5 | gas-lift 1",
     "n_wells": 32,
     # assuming wat_max controls the water <= X constraint:
     "constraints": CONSTRAINT_PRESETS["32_wells"],
     "hyperparams": HYPERPARAM_PRESETS["promising"],
     "hyperparam_overrides": {
         "rho": 0.5,
-        "sigma": 4.0,
+        "sigma": 0.75
     },
     "subvector": subvectors[32][i],
     "subvector_sequence": subvector_sequences[32][i],
     }
-    for i in [0,1,2]
+    for i in [0,1]
     ]
 
     # ----------- Main script -----------
