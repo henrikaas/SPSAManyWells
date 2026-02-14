@@ -165,9 +165,43 @@ INIT_INFO: dict = {
     "nsol_32wells_choke50": {
         "oil": 434.58,
         "water": 183.75,
-        "gaslift": 113.55,
+        "gaslift": 32,
+        "gas": 113.5,
         # "opt_prod": 68,
-    }
+        "starting_vector": {
+            "336.82": [0.5, 1.0],
+            "337.86": [0.5, 1.0],
+            "338.57": [0.5, 1.0],
+            "343.74": [0.5, 1.0],
+            "343.82": [0.5, 1.0],
+            "349.17": [0.5, 1.0],
+            "359.13": [0.5, 1.0],
+            "365.73": [0.5, 1.0],
+            "368.81": [0.5, 1.0],
+            "370.44": [0.5, 1.0],
+            "371.14": [0.5, 1.0],
+            "374.26": [0.5, 1.0],
+            "375.35": [0.5, 1.0],
+            "378.28": [0.5, 1.0],
+            "383.37": [0.5, 1.0],
+            "385.38": [0.5, 1.0],
+            "386.26": [0.5, 1.0],
+            "387.67": [0.5, 1.0],
+            "395.69": [0.5, 1.0],
+            "395.72": [0.5, 1.0],
+            "398.39": [0.5, 1.0],
+            "400.07": [0.5, 1.0],
+            "410.13": [0.5, 1.0],
+            "410.29": [0.5, 1.0],
+            "411.72": [0.5, 1.0],
+            "416.84": [0.5, 1.0],
+            "417.30": [0.5, 1.0],
+            "417.66": [0.5, 1.0],
+            "419.70": [0.5, 1.0],
+            "419.91": [0.5, 1.0],
+            "420.57": [0.5, 1.0],
+            "420.65": [0.5, 1.0]},
+    },
 }
 
 DEFAULT_INFO = {
@@ -251,7 +285,12 @@ def list_iterations(experiment_dir: Path) -> list[int]:
                     iters.add(int(m.group(1)))
     return sorted(iters)
 
-def extract_production_history(data: pd.DataFrame, n_sims: int, init_production: tuple[float,float,float], only_optimizing: bool):
+def extract_production_history(
+    data: pd.DataFrame,
+    n_sims: int,
+    init_production: tuple[float, float, float] | tuple[float, float, float, float],
+    only_optimizing: bool,
+):
     """
     Extracts the production history from the data provided.
     """
@@ -261,21 +300,26 @@ def extract_production_history(data: pd.DataFrame, n_sims: int, init_production:
     well_data = data.groupby('ID')
     n_wells = len(well_data)
 
-    init_oil, init_gasl, init_water = init_production
-    oil, gasl, water = [init_oil], [init_gasl], [init_water]
+    if len(init_production) == 4:
+        init_oil, init_gasl, init_water, init_gas = init_production
+    else:
+        init_oil, init_gasl, init_water = init_production
+        init_gas = 0.0
+    oil, gasl, water, gas = [init_oil], [init_gasl], [init_water], [init_gas]
 
     if only_optimizing:
         well_data = well_data
         for i in range(n_sims):
-            o = g = w = 0.0
+            o = g = w = wg = 0.0
             for well_idx in range(n_wells):
                 well = well_data.get_group(well_idx)
                 
                 o += well['WOIL'].iloc[i]
                 g += well['WGL'].iloc[i]
                 w += well['WWAT'].iloc[i]
+                wg += well['WGAS'].iloc[i]
 
-            oil.append(o); gasl.append(g); water.append(w)
+            oil.append(o); gasl.append(g); water.append(w); gas.append(wg)
 
     else:
         iteration = [0] * n_wells
@@ -283,6 +327,7 @@ def extract_production_history(data: pd.DataFrame, n_sims: int, init_production:
             o = [0.0] * 3
             g = [0.0] * 3
             w = [0.0] * 3
+            wg = [0.0] * 3
             for well_idx in range(n_wells):
                 well = well_data.get_group(well_idx)
                 i = iteration[well_idx] # Find the position where we left of in the data
@@ -300,6 +345,10 @@ def extract_production_history(data: pd.DataFrame, n_sims: int, init_production:
                     w[0] += well['WWAT'].iloc[i]
                     w[1] += well['WWAT'].iloc[i]
                     w[2] += well['WWAT'].iloc[i]
+                    # Produced gas (excluding lift gas)
+                    wg[0] += well['WGAS'].iloc[i]
+                    wg[1] += well['WGAS'].iloc[i]
+                    wg[2] += well['WGAS'].iloc[i]
 
                     iteration[well_idx] = i + 1
                 else:
@@ -315,12 +364,16 @@ def extract_production_history(data: pd.DataFrame, n_sims: int, init_production:
                     w[0] += well['WWAT'].iloc[i]
                     w[1] += well['WWAT'].iloc[i+1]
                     w[2] += well['WWAT'].iloc[i+2]
+                    # Produced gas (excluding lift gas)
+                    wg[0] += well['WGAS'].iloc[i]
+                    wg[1] += well['WGAS'].iloc[i+1]
+                    wg[2] += well['WGAS'].iloc[i+2]
 
                     iteration[well_idx] = i + 3
 
-            oil += o; gasl += g; water += w
+            oil += o; gasl += g; water += w; gas += wg
 
-    return oil, gasl, water
+    return oil, gasl, water, gas
 
 def extract_decision_vector(data: pd.DataFrame, only_optimizing: bool = False):
     """
@@ -456,10 +509,12 @@ def plot_spsa_experiment(experiment_name: str,
         # df = keep_last_unique_pairs(df, correct_i = 3*i)
         # n_sims = int(len(df) / (2 * min(max_wells, n_wells) + n_wells))
         
-        oil, gasl, water = extract_production_history(data=df, 
-                                                      n_sims=n_sims, 
-                                                      init_production=(info["oil"], info["gaslift"], info["water"]),
-                                                      only_optimizing=only_optimizing_iterations)
+        oil, gasl, water, _ = extract_production_history(
+            data=df,
+            n_sims=n_sims,
+            init_production=(info["oil"], info["gaslift"], info["water"], info.get("gas", 0.0)),
+            only_optimizing=only_optimizing_iterations,
+        )
 
         # x_vals = range(1, len(oil) + 1)
         axs[0].plot(oil, label=f'Run {run_idx+1}', color='brown', alpha=0.5) # Oil production
@@ -501,8 +556,10 @@ def plot_average_production(experiments: list[Path],
     """
     Compares a set of given experiments by plotting the average production over all runs.
     """
-    fig_sizes = [(13.33, 5), (13.33, 7.5), (13.33, 10)]
-    fig, axs = plt.subplots(len(production_types), 1, figsize=fig_sizes[len(production_types)-1], sharex=True, constrained_layout=True)
+    fig_sizes = {1: (13.33, 5), 2: (13.33, 7.5), 3: (13.33, 10), 4: (13.33, 12.5)}
+    figsize = fig_sizes.get(len(production_types), (13.33, 2.5 * len(production_types) + 2.5))
+    fig, axs = plt.subplots(len(production_types), 1, figsize=figsize, sharex=True, constrained_layout=True)
+    axs = np.atleast_1d(axs)
 
     if "rho" in experiments[0].name and "water" in experiments[0].name:
         experiments = sorted(experiments, key=lambda e: float(re.search(r'rho(\d+(?:\.\d+)?)', e.name).group(1)))
@@ -519,7 +576,7 @@ def plot_average_production(experiments: list[Path],
 
         n_wells = info["n_wells"]
 
-        oil_prods, gasl_prods, water_prods = [], [], []
+        oil_prods, gasl_prods, water_prods, gas_prods = [], [], [], []
         for run_idx, run in enumerate(runs):
             path = Path(f"{run}/iteration_{iterations}/iteration_{iterations}.csv")
             if not path.exists():
@@ -533,13 +590,16 @@ def plot_average_production(experiments: list[Path],
             if n_wells != len(df.groupby('ID')):
                 raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
 
-            oil, gasl, water = extract_production_history(data=df, 
-                                                        n_sims=n_sims, 
-                                                        init_production=(info["oil"], info["gaslift"], info["water"]),
-                                                        only_optimizing=only_optimizing_iterations)
+            oil, gasl, water, gas = extract_production_history(
+                data=df,
+                n_sims=n_sims,
+                init_production=(info["oil"], info["gaslift"], info["water"], info.get("gas", 0.0)),
+                only_optimizing=only_optimizing_iterations,
+            )
             oil_prods.append(oil)
             gasl_prods.append(gasl)
             water_prods.append(water)
+            gas_prods.append(gas)
         
         if "rho" in experiment_dir.name and "water" in experiment_dir.name:
             label=experiment_dir.name.split("_")[0].replace("rho", "")
@@ -573,10 +633,17 @@ def plot_average_production(experiments: list[Path],
                 axs[i].plot(avg_prod, label=label if i == 0 else "", alpha=0.8)
                 print(f"Final average water production for {experiment_dir.name}: {avg_prod[-1]:.2f}")
                 print(f"Final stddev water production for {experiment_dir.name}: {stdev_prod[-1]:.2f}")
+            elif prod_type == 'gas':
+                prod_array = np.array(gas_prods)
+                avg_prod = np.mean(prod_array, axis=0)
+                stdev_prod = np.std(prod_array, axis=0)
+                axs[i].plot(avg_prod, label=label if i == 0 else "", alpha=0.8)
+                print(f"Final average gas production for {experiment_dir.name}: {avg_prod[-1]:.2f}")
+                print(f"Final stddev gas production for {experiment_dir.name}: {stdev_prod[-1]:.2f}")
     if "oil" in production_types:
         # axs[production_types.index("oil")].set_ylim(bottom=62, top=70) # These needs to be set manually, water = 20
         # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
-        axs[production_types.index("oil")].set_ylim(bottom=480, top=550) # These needs to be set manually
+        # axs[production_types.index("oil")].set_ylim(bottom=480, top=550) # These needs to be set manually
         # axs[production_types.index("oil")].set_ylim(bottom=159, top=180) # These needs to be set manually
 
         axs[production_types.index("oil")].plot(0, info["oil"],
@@ -587,7 +654,7 @@ def plot_average_production(experiments: list[Path],
             label="_nolegend_")
     if "gas-lift" in production_types:
         # axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=11) # These needs to be set manually
-        axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=27) # These needs to be set manually
+        # axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=27) # These needs to be set manually
         # axs[production_types.index("gas-lift")].set_ylim(bottom=0, top=16) # These needs to be set manually
 
 
@@ -600,10 +667,17 @@ def plot_average_production(experiments: list[Path],
     if "water" in production_types:
         # axs[production_types.index("water")].set_ylim(bottom=18.5, top=21.5) # These needs to be set manually, water = 20
         # axs[production_types.index("water")].set_ylim(bottom=5, top=21) # These needs to be set manually, water = 15
-        axs[production_types.index("water")].set_ylim(bottom=204, top=225) # These needs to be set manually
+        # axs[production_types.index("water")].set_ylim(bottom=204, top=225) # These needs to be set manually
         # axs[production_types.index("water")].set_ylim(bottom=58, top=64) # These needs to be set manually
 
         axs[production_types.index("water")].plot(0, info["water"],
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
+    if "gas" in production_types:
+        axs[production_types.index("gas")].plot(0, info.get("gas", 0.0),
             marker='o',
             markersize=3,
             color="k",
@@ -623,7 +697,8 @@ def plot_average_production(experiments: list[Path],
             axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25, label="Water Production Boundary") # Visualize water production max
             axs[i].axhspan(bound, ymax, facecolor="rosybrown", alpha=0.3, zorder=0)
             axs[i].legend(loc="lower right")
-        axs[i].set_title(f'{prod_type.capitalize()} Production')
+        title = "Gas-Lift Production" if prod_type == "gas-lift" else "Gas Production" if prod_type == "gas" else f"{prod_type.capitalize()} Production"
+        axs[i].set_title(title)
     axs[len(production_types)-1].set_xlabel('Iterations')
     axs[len(production_types)-1].set_xlim(left=-1, right=iterations + 1)
 
@@ -665,11 +740,11 @@ def plot_production(experiment_name: str,
 
     n_wells = info["n_wells"]
 
-    figsize = (13.33, 3.5) if len(production_types) == 1 else (13.33, 7.5)
+    figsize = (13.33, 3.5) if len(production_types) == 1 else (13.33, 2.5 * len(production_types) + 2.5)
     fig, axs = plt.subplots(len(production_types), 1, figsize=figsize, sharex=True, constrained_layout=True, squeeze=False)
     axs = axs.ravel()
     
-    oils, gls, waters = [], [], []
+    oils, gls, waters, gases = [], [], [], []
     for run_idx, run in enumerate(runs):
         path = Path(f"{run}/iteration_{iterations}/iteration_{iterations}.csv")
         if not path.exists():
@@ -683,11 +758,13 @@ def plot_production(experiment_name: str,
         if n_wells != len(df.groupby('ID')):
             raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
         
-        oil, gasl, water = extract_production_history(data=df, 
-                                                    n_sims=n_sims, 
-                                                    init_production=(info["oil"], info["gaslift"], info["water"]),
-                                                    only_optimizing=only_optimizing_iterations)
-        oils.append(oil); gls.append(gasl); waters.append(water)
+        oil, gasl, water, gas = extract_production_history(
+            data=df,
+            n_sims=n_sims,
+            init_production=(info["oil"], info["gaslift"], info["water"], info.get("gas", 0.0)),
+            only_optimizing=only_optimizing_iterations,
+        )
+        oils.append(oil); gls.append(gasl); waters.append(water); gases.append(gas)
         
         for i, prod_type in enumerate(production_types):
             if prod_type == 'oil':
@@ -702,8 +779,12 @@ def plot_production(experiment_name: str,
                 if run_idx == highlight:
                     axs[i].plot(water, color='navy', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100) # Water production   
                 axs[i].plot(water, label=f"Production Sequence" if run_idx==0 else "", color='cornflowerblue', alpha=0.8) # Water production
+            elif prod_type == 'gas':
+                if run_idx == highlight:
+                    axs[i].plot(gas, color='darkorange', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100)
+                axs[i].plot(gas, label=f"Production Sequence" if run_idx==0 else "", color='orange', alpha=0.8)
     if "oil" in production_types:
-        # axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
+        axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
         # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
         # axs[production_types.index("oil")].set_ylim(bottom=480, top=560) # These needs to be set manually
         mean_oil = np.mean(np.array(oils), axis=0)
@@ -739,6 +820,15 @@ def plot_production(experiment_name: str,
             color="k",
             alpha=0.6,
             label="_nolegend_")
+    if "gas" in production_types:
+        mean_gas = np.mean(np.array(gases), axis=0)
+        axs[production_types.index("gas")].plot(mean_gas, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--')
+        axs[production_types.index("gas")].plot(0, info.get("gas", 0.0),
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
     # =============
 
     for i, prod_type in enumerate(production_types):
@@ -754,7 +844,8 @@ def plot_production(experiment_name: str,
             axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25) # Visualize water production max
             axs[i].axhspan(bound, ymax, facecolor="rosybrown", alpha=0.3, zorder=0)
             # axs[i].legend(loc="lower right")
-        axs[i].set_title(f'{prod_type.capitalize()} Production')
+        title = "Gas-Lift Production" if prod_type == "gas-lift" else "Gas Production" if prod_type == "gas" else f"{prod_type.capitalize()} Production"
+        axs[i].set_title(title)
     axs[len(production_types)-1].set_xlabel('Iterations' if only_optimizing_iterations else 'Function Evaluations')
     axs[len(production_types)-1].set_xlim(left=-1, right=iterations + 1 if only_optimizing_iterations else iterations*3+1)
             
@@ -768,7 +859,7 @@ def plot_production(experiment_name: str,
     if text == "rho":
         print_text(axs[0], rf"$\rho = {info.get('rho', 'N/A')}$", (0.02, 0.95), ('top', 'left'))
     if text == "stepsize":
-        a = info.get('a', 'N/A')
+        a = info.get('a', 'N/A') * 0.15
         A = info.get('A', 'N/A')
         alpha = info.get('alpha', 'N/A')
         print_text(axs[0], rf"$\frac{{{a}}}{{(k+{A})^{{{alpha}}}}}$", (0.5, 0.05), ('bottom', 'center'), textsize=24)
@@ -906,10 +997,12 @@ def print_production_sequence(experiment_name: str):
         if n_wells != len(df.groupby('ID')):
             raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
         
-        oil, gasl, water = extract_production_history(data=df, 
-                                                      n_sims=n_sims, 
-                                                      init_production=(info["oil"], info["gaslift"], info["water"]),
-                                                      only_optimizing=False)
+        oil, gasl, water, _ = extract_production_history(
+            data=df,
+            n_sims=n_sims,
+            init_production=(info["oil"], info["gaslift"], info["water"], info.get("gas", 0.0)),
+            only_optimizing=False,
+        )
         u, gl = extract_decision_vector(data=df, only_optimizing=False)
         
         print(f"Run {run_idx+1} Production Sequence:")
@@ -1467,10 +1560,12 @@ def plot_penalty_terms(experiments: list[Path],
             df = pd.read_csv(path)
             n_sims = iterations
 
-            oil, gasl, water = extract_production_history(data=df, 
-                                                        n_sims=n_sims, 
-                                                        init_production=(info["oil"], info["gaslift"], info["water"]),
-                                                        only_optimizing=False)
+            oil, gasl, water, _ = extract_production_history(
+                data=df,
+                n_sims=n_sims,
+                init_production=(info["oil"], info["gaslift"], info["water"], info.get("gas", 0.0)),
+                only_optimizing=False,
+            )
 
             # Compute penalty terms for each run
             water = water[1:] # Exclude initial production
@@ -1678,10 +1773,12 @@ def plot_cumulative_production(experiment_name: str,
         # df = keep_last_unique_pairs(df, correct_i = 3*i)
         # n_sims = int(len(df) / (2 * min(max_wells, n_wells) + n_wells))
         
-        oil, gasl, water = extract_production_history(data=df, 
-                                                      n_sims=n_sims, 
-                                                      init_production=(info["oil"], info["gaslift"], info["water"]),
-                                                      only_optimizing=only_optimizing_iterations)
+        oil, gasl, water, _ = extract_production_history(
+            data=df,
+            n_sims=n_sims,
+            init_production=(info["oil"], info["gaslift"], info["water"], info.get("gas", 0.0)),
+            only_optimizing=only_optimizing_iterations,
+        )
 
         # x_vals = range(1, len(oil) + 1)
         oil[0] = 0.0  # Start cumulative from zero
@@ -2005,19 +2102,19 @@ if __name__ == "__main__":
     experiments = [e for e in main_path.iterdir() if e.is_dir()]
     # experiments = [e for e in main_path.iterdir() if e.is_dir() if any(opt in e.name for opt in opt_12wells)]
 
-    for exp in experiments:
-        plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-        # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil", "gas-lift", "water"], highlight=None, only_optimizing_iterations=True, text = None, save=False)
+    # for exp in experiments:
+        # plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
+        # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil"], highlight=None, only_optimizing_iterations=True, text = "stepsize", save=True)
         # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
         # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[0,1,2,3,4,5], only_optimizing_iterations=True, runs=[1,2,3,4,5,6], type="scatter", save=False)
-        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[0, 1, 2], runs=[i for i in range(5)], only_optimizing_iterations=True, type="line", save=True)
+        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[7,8,9,10], runs=None, only_optimizing_iterations=True, type="line", save=False)
         # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
-        # plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=True)
+        # plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
     
 
     # Average production across experiments in a main folder
-    # plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "gas-lift", "water"], save=True)
+    plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "gas"], save=False)
 
     # Compare penalty terms across experiments in different main experiments
     # main_experiments = [

@@ -17,7 +17,7 @@ from spsa.constraints import WellSystemConstraints
 from spsa.gradient import SPSAGradient
 
 from spsa.utils import create_data_point, configure_wells, create_sim_results_df, calculate_state, create_dirs
-from spsa.utils import save_data, choked_flow, save_fail_log, append_fail_log, save_init_log
+from spsa.utils import save_data, choked_flow, save_fail_log, append_fail_log, save_init_log, configure_nonstationary_wells
 
 
 @dataclass(frozen=True)
@@ -275,7 +275,9 @@ class SPSA:
     def optimize(self, n_sim: int = 50, starting_k: int = 0, save_path: str = None,
                  *,
                  subvectors: list[list[int]] | None = None,
-                 subvector_sequence: list[int] | None = None,):
+                 subvector_sequence: list[int] | None = None,
+                 sample_conditions: bool = False,
+                 sample_frequency: int | None = None):
         """
         Run the SPSA optimization algorithm.
         Args:
@@ -542,6 +544,9 @@ class SPSA:
                 print(f"Saving state after {k} successful iterations")
                 save_data(self.wells, well_data=well_data, main_path=save_path, k=k)
 
+            if sample_conditions and k % sample_frequency == 0:
+                for well in self.wells:
+                    well.update_conditions(k, k-1)
             self.backup_wells = copy.deepcopy(self.wells) # Back up of wells for next iteration
             k += 1
             n_fails = 0
@@ -581,12 +586,14 @@ if __name__ == "__main__":
                                 [5, 6, 4, 5, 4, 5, 6, 7, 3, 6, 4, 0, 5, 4, 5, 5, 7, 2, 4, 5, 4, 0, 2, 5, 1, 3, 4, 7, 3, 0, 2, 0, 1, 5, 7, 0, 2, 4, 2, 7, 1, 0, 1, 4, 2, 4, 2, 3, 0, 0]]
     }
     config_files = ["nsol_32wells_randchoke", "nsol_32wells_optchoke"]
+    base_seed = 1234
+    sample_frequencies = [2, 5, 10]
     
     experiments = [
-    {"config": f"nsol_32wells_choke50",
-    "save": f"experiments nsol noise/subvector{i}",
+    {"config": f"nsol_32wells_choke50_nonstat",
+    "save": f"experiments nonstatinarity({base_seed})/freq{sample_freq}/subvector{i}",
     "description": (
-        "Noise levels experiment\n"
+        "Nonstationarity experiment\n"
         "Augmented Lagrangian SPSA\n"
         f"Default mixed production well system with size 32\n"
 
@@ -600,9 +607,13 @@ if __name__ == "__main__":
         "rho": 0.5,
         "sigma": 0.75
     },
+    "non_stationary": True,
+    "base_seed": base_seed,
+    "sample_frequency": sample_freq,
     "subvector": subvectors[32][i],
     "subvector_sequence": subvector_sequences[32][i],
     }
+    for sample_freq in sample_frequencies
     for i in [0,1]
     ]
 
@@ -610,7 +621,11 @@ if __name__ == "__main__":
     work_dir, results_dir = create_dirs(experiments, n_runs)
 
     for experiment in experiments:
-        parent_wells = configure_wells(filepath=
+        if experiment["non_stationary"]:
+            parent_wells = configure_nonstationary_wells(filepath=os.path.join(work_dir, "config files", f"{experiment['config']}.csv"),
+                                                         feedback=True, base_seed=experiment["base_seed"])
+        else:
+            parent_wells = configure_wells(filepath=
                                     os.path.join(work_dir, "config files", f"{experiment['config']}.csv"))
         parent_constraints = experiment['constraints']
         parent_hyperparams = experiment['hyperparams']
@@ -638,6 +653,8 @@ if __name__ == "__main__":
                                  save_path=os.path.join(results_dir, experiment['save'], f"run{run_id}"),
                                     subvectors=experiment['subvector'],
                                     subvector_sequence=experiment['subvector_sequence'],
+                                    sample_conditions=True if experiment["non_stationary"] else False,
+                                    sample_frequency=experiment["sample_frequency"] if experiment["non_stationary"] else False
                 )
             except SimError as e:
                 print(f"Simulation {run_id} failed: {e}")

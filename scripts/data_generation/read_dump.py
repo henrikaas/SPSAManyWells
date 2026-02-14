@@ -125,7 +125,7 @@ if __name__ == '__main__':
 
 
     # ------------- If you want to run on all experiments within a main folder -------------
-    main_exp = "experiments nsol oilandgas" # Change this as needed
+    main_exp = "experiments nsol randchoke" # Change this as needed
 
     main_path = os.environ["RESULTS_DIR"]
     experiment_path = Path(f"{main_path}/{main_exp}")
