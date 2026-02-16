@@ -25,6 +25,11 @@ from constraints import WellSystemConstraints
 DATA_DIR = os.environ["RESULTS_DIR"]
 PLOT_DIR = os.environ["PLOT_DIR"]
 
+NSOL = {
+    "oil": (420, 480),
+    "water": (170, 200)
+}
+
 INIT_INFO: dict = {
     "mixedprod_choke50": {
         "oil": 62.636,
@@ -202,6 +207,127 @@ INIT_INFO: dict = {
             "420.57": [0.5, 1.0],
             "420.65": [0.5, 1.0]},
     },
+    "nsol_32wells_choke50-new": {
+        "oil": 434.58,
+        "water": 183.75,
+        "gaslift": 32,
+        "gas": 113.5,
+        # "opt_prod": 68,
+        "starting_vector": {
+            "336.82": [0.5, 1.0],
+            "337.86": [0.5, 1.0],
+            "338.57": [0.5, 1.0],
+            "343.74": [0.5, 1.0],
+            "343.82": [0.5, 1.0],
+            "349.17": [0.5, 1.0],
+            "359.13": [0.5, 1.0],
+            "365.73": [0.5, 1.0],
+            "368.81": [0.5, 1.0],
+            "370.44": [0.5, 1.0],
+            "371.14": [0.5, 1.0],
+            "374.26": [0.5, 1.0],
+            "375.35": [0.5, 1.0],
+            "378.28": [0.5, 1.0],
+            "383.37": [0.5, 1.0],
+            "385.38": [0.5, 1.0],
+            "386.26": [0.5, 1.0],
+            "387.67": [0.5, 1.0],
+            "395.69": [0.5, 1.0],
+            "395.72": [0.5, 1.0],
+            "398.39": [0.5, 1.0],
+            "400.07": [0.5, 1.0],
+            "410.13": [0.5, 1.0],
+            "410.29": [0.5, 1.0],
+            "411.72": [0.5, 1.0],
+            "416.84": [0.5, 1.0],
+            "417.30": [0.5, 1.0],
+            "417.66": [0.5, 1.0],
+            "419.70": [0.5, 1.0],
+            "419.91": [0.5, 1.0],
+            "420.57": [0.5, 1.0],
+            "420.65": [0.5, 1.0]},
+    },
+    "nsol_32wells_randchoke": {
+        "oil": 425.0,
+        "water": 178.0,
+        "gaslift": 38.5,
+        "gas": 100,
+        "starting_vector": {
+            "336.82": [0.275, 0.35],
+            "337.86": [0.5, 0.8],
+            "338.57": [0.45, 1.0],
+            "343.74": [0.55, 0.25],
+            "343.82": [1.0, 2.2],
+            "349.17": [0.35, 0.35],
+            "359.13": [0.45, 1.6],
+            "365.73": [0.65, 2.2],
+            "368.81": [0.6, 0.65],
+            "370.44": [0.5, 1.65],
+            "371.14": [0.55, 0.45],
+            "374.26": [0.55, 0.25],
+            "375.35": [0.6, 0.25],
+            "383.37": [0.45, 0.45],
+            "385.38": [0.35, 0.25],
+            "386.26": [0.25, 0.65],
+            "387.67": [0.25, 1.6],
+            "395.69": [0.75, 1.4],
+            "395.72": [0.35, 1.35],
+            "395.98": [0.5, 1.25],
+            "398.39": [0.325, 1.0],
+            "400.07": [0.7, 1.35],
+            "410.13": [0.6, 2.0],
+            "410.29": [0.4, 3.4],
+            "411.72": [0.45, 1.8],
+            "416.84": [0.6, 1.4],
+            "417.30": [0.375, 1.15],
+            "417.66": [0.6, 0.75],
+            "419.70": [0.6, 1.4],
+            "419.91": [0.75, 2.2],
+            "420.57": [0.275, 1.15],
+            "420.65": [0.7, 1.8]
+        }
+
+    },
+    "nsol_32wells_optchoke": {
+        "oil": 465,
+        "water": 190,
+        "gaslift": 32,
+        "gas": 113.5,
+        "starting_vector": {
+            "336.82": [0.6534910257708797, 1.7674551288543987],
+            "337.86": [0.5782317077956652, 2.6088414610216737],
+            "338.57": [0.6217682922043347, 0.6088414610216737],
+            "343.74": [0.4993574850275498, 0.3694784023275569],
+            "343.82": [0.5061426048932791, 2.322468632502096],
+            "349.17": [0.8355062734995808, 0.0307130244663951],
+            "359.13": [0.7906547431793318, 0.304729954317891],
+            "365.73": [0.6390540091364219, 2.6952700456821086],
+            "368.81": [0.7733393023404186, 0.0],
+            "370.44": [0.4780184425754168, 2.166000202091978],
+            "371.14": [0.8304611021492758, 0.507460835279665],
+            "374.26": [0.8760846405909823, 0.3426289195806558],
+            "375.35": [0.4534910257708797, 0.5],
+            "378.28": [0.7635397088803373, 1.0700652378904978],
+            "383.37": [0.5465089742291203, 0.2325448711456013],
+            "385.38": [0.3465089742291203, 0.2325448711456013],
+            "386.26": [0.8261043195344886, 0.0],
+            "387.67": [0.7782317077956652, 0.0],
+            "395.69": [0.9782317077956652, 1.6088414610216737],
+            "395.72": [0.7450251023001638, 1.2251255115008195],
+            "398.39": [0.6549748976998361, 0.7748744884991805],
+            "400.07": [0.6549748976998361, 1.2251255115008195],
+            "410.13": [0.764493726500419, 1.0307130244663951],
+            "410.29": [0.6093452568206681, 0.0],
+            "411.72": [0.493857395106721, 1.9692869755336049],
+            "416.84": [0.671041988225498, 0.7583312585400926],
+            "417.30": [0.82459534960632, 0.1485028867002624],
+            "417.66": [0.7879486273034133, 2.630521597672443],
+            "419.70": [0.7006425149724502, 0.1875658862931253],
+            "419.91": [0.747526666188423, 0.8318328926184346],
+            "420.57": [0.854974897699836, 1.2251255115008195],
+            "420.65": [0.5906547431793319, 2.5467262841033405]
+        }
+    }
 }
 
 DEFAULT_INFO = {
@@ -784,9 +910,10 @@ def plot_production(experiment_name: str,
                     axs[i].plot(gas, color='darkorange', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100)
                 axs[i].plot(gas, label=f"Production Sequence" if run_idx==0 else "", color='orange', alpha=0.8)
     if "oil" in production_types:
-        axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
+        # axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
         # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
         # axs[production_types.index("oil")].set_ylim(bottom=480, top=560) # These needs to be set manually
+        axs[production_types.index("oil")].set_ylim(bottom=NSOL["oil"][0], top=NSOL["oil"][1]) # These needs to be set manually
         mean_oil = np.mean(np.array(oils), axis=0)
         axs[production_types.index("oil")].plot(mean_oil, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average oil production
         
@@ -811,6 +938,7 @@ def plot_production(experiment_name: str,
     if "water" in production_types:
         # axs[production_types.index("water")].set_ylim(top=22) # These needs to be set manually, water = 20
         # axs[production_types.index("water")].set_ylim(bottom=5, top=21) # These needs to be set manually, water = 15
+        axs[production_types.index("water")].set_ylim(bottom=NSOL["water"][0], top=NSOL["water"][1]) # These needs to be set manually, water = 15
         mean_water = np.mean(np.array(waters), axis=0)
         axs[production_types.index("water")].plot(mean_water, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average water production
 
@@ -859,7 +987,7 @@ def plot_production(experiment_name: str,
     if text == "rho":
         print_text(axs[0], rf"$\rho = {info.get('rho', 'N/A')}$", (0.02, 0.95), ('top', 'left'))
     if text == "stepsize":
-        a = info.get('a', 'N/A') * 0.15
+        a = info.get('a', 'N/A')
         A = info.get('A', 'N/A')
         alpha = info.get('alpha', 'N/A')
         print_text(axs[0], rf"$\frac{{{a}}}{{(k+{A})^{{{alpha}}}}}$", (0.5, 0.05), ('bottom', 'center'), textsize=24)
@@ -2054,6 +2182,260 @@ def plot_gain_sequences(save = False):
         plt.savefig(f"{PLOT_DIR}/experiments ak/gain_sequences.png", dpi=300, bbox_inches="tight")
     plt.show()
 
+def plot_only_perturbations(experiment_name: str,
+                    production_types: list[str] | None = ['oil', 'gas-lift', 'water', 'gas'],
+                    iterations: int = 50,
+                    highlight: int | None = None,
+                    text: str | None = None,
+                    save: bool = False):
+    """
+    Prints the production of a set of production sequences. Production is specified in production_types.
+    """
+    experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
+    info = extract_settings(experiment_dir)
+    config_file = info["config_file"]
+    info.update(INIT_INFO[config_file])
+
+    runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+
+    n_wells = info["n_wells"]
+
+    figsize = (13.33, 3.5) if len(production_types) == 1 else (13.33, 2.5 * len(production_types) + 2.5)
+    fig, axs = plt.subplots(len(production_types), 1, figsize=figsize, sharex=True, constrained_layout=True, squeeze=False)
+    axs = axs.ravel()
+    
+    oils, gls, waters, gases = [], [], [], []
+    for run_idx, run in enumerate(runs):
+        path = Path(f"{run}/iteration_{iterations}/iteration_{iterations}.csv")
+        if not path.exists():
+            print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
+            continue
+   
+        df = pd.read_csv(path)
+        n_sims = iterations
+    
+        # Number of wells with check
+        if n_wells != len(df.groupby('ID')):
+            raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
+        
+        oil, gasl, water, gas = extract_production_history(
+            data=df,
+            n_sims=n_sims,
+            init_production=(info["oil"], info["gaslift"], info["water"], info.get("gas", 0.0)),
+            only_optimizing=False,
+        )
+        
+        # Drop every third element starting from index 3
+        oil = [oil[i] for i in range(len(oil)) if i % 3 != 0 or i == 0]
+        gasl = [gasl[i] for i in range(len(gasl)) if i % 3 != 0 or i == 0]
+        water = [water[i] for i in range(len(water)) if i % 3 != 0 or i == 0]
+        gas = [gas[i] for i in range(len(gas)) if i % 3 != 0 or i == 0]
+        
+        oils.append(oil); gls.append(gasl); waters.append(water); gases.append(gas)
+        
+        for i, prod_type in enumerate(production_types):
+            if prod_type == 'oil':
+                if run_idx == highlight:
+                    axs[i].plot(oil, color='darkred', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100) # Oil production
+                axs[i].plot(oil, label=f"Production Sequence" if run_idx==0 else "", color='lightcoral', alpha=0.8) # Oil production
+            elif prod_type == 'gas-lift':
+                if run_idx == highlight:
+                    axs[i].plot(gasl, color='forestgreen', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100) # Gas-lift production
+                axs[i].plot(gasl, label=f"Production Sequence" if run_idx==0 else "", color='limegreen', alpha=0.8) # Gas-lift production
+            elif prod_type == 'water':
+                if run_idx == highlight:
+                    axs[i].plot(water, color='navy', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100) # Water production   
+                axs[i].plot(water, label=f"Production Sequence" if run_idx==0 else "", color='cornflowerblue', alpha=0.8) # Water production
+            elif prod_type == 'gas':
+                if run_idx == highlight:
+                    axs[i].plot(gas, color='darkorange', linewidth=2, alpha=1.0, label="Highlighted Sequence", zorder=100)
+                axs[i].plot(gas, label=f"Production Sequence" if run_idx==0 else "", color='orange', alpha=0.8)
+    if "oil" in production_types:
+        # axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
+        # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
+        axs[production_types.index("oil")].set_ylim(bottom=NSOL["oil"][0], top=NSOL["oil"][1]) # These needs to be set manually
+        mean_oil = np.mean(np.array(oils), axis=0)
+        # axs[production_types.index("oil")].plot(mean_oil, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average oil production
+        
+        axs[production_types.index("oil")].plot(0, info["oil"],
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
+
+    if "gas-lift" in production_types:
+        # axs[production_types.index("gas-lift")].set_ylim(bottom=-0.1, top=17) # These needs to be set manually
+        mean_gl = np.mean(np.array(gls), axis=0)
+        # axs[production_types.index("gas-lift")].plot(mean_gl, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average gas-lift production
+
+        axs[production_types.index("gas-lift")].plot(0, info["gaslift"],
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
+    if "water" in production_types:
+        # axs[production_types.index("water")].set_ylim(top=22) # These needs to be set manually, water = 20
+        axs[production_types.index("water")].set_ylim(bottom=NSOL["water"][0], top=NSOL["water"][1]) # These needs to be set manually, water = 15
+        mean_water = np.mean(np.array(waters), axis=0)
+        # axs[production_types.index("water")].plot(mean_water, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--') # Average water production
+
+        axs[production_types.index("water")].plot(0, info["water"],
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
+    if "gas" in production_types:
+        mean_gas = np.mean(np.array(gases), axis=0)
+        # axs[production_types.index("gas")].plot(mean_gas, color='black', linewidth=1, alpha=0.8, label="Average Production", linestyle='--')
+        axs[production_types.index("gas")].plot(0, info.get("gas", 0.0),
+            marker='o',
+            markersize=3,
+            color="k",
+            alpha=0.6,
+            label="_nolegend_")
+    # =============
+
+    for i, prod_type in enumerate(production_types):
+
+        ymin, ymax = axs[i].get_ylim()
+        if prod_type == 'gas-lift':
+            bound = info["constraints"]["comb_gl_max"]
+            axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25) # Visualize combined gas lift max
+            axs[i].axhspan(bound, ymax, facecolor="rosybrown", alpha=0.3, zorder=0)
+            # axs[i].legend(loc="lower right")
+        elif prod_type == 'water':
+            bound = info["constraints"]["wat_max"]
+            axs[i].axhline(y=bound, color='k', linestyle='-', linewidth=1.25) # Visualize water production max
+            axs[i].axhspan(bound, ymax, facecolor="rosybrown", alpha=0.3, zorder=0)
+            # axs[i].legend(loc="lower right")
+        title = "Gas-Lift Production" if prod_type == "gas-lift" else "Gas Production" if prod_type == "gas" else f"{prod_type.capitalize()} Production"
+        axs[i].set_title(title)
+    axs[len(production_types)-1].set_xlabel('Perturbations')
+    axs[len(production_types)-1].set_xlim(left=-1, right=iterations*2 + 1)
+            
+
+    # =========================
+
+    for ax in axs:
+        ax.legend(loc="lower right")
+        ax.grid(True)
+
+    if text == "rho":
+        print_text(axs[0], rf"$\rho = {info.get('rho', 'N/A')}$", (0.02, 0.95), ('top', 'left'))
+    if text == "stepsize":
+        a = info.get('a', 'N/A') * 0.15
+        A = info.get('A', 'N/A')
+        alpha = info.get('alpha', 'N/A')
+        print_text(axs[0], rf"$\frac{{{a}}}{{(k+{A})^{{{alpha}}}}}$", (0.5, 0.05), ('bottom', 'center'), textsize=24)
+    if text == "perturb":
+        max_wells = info["constraints"].get("max_wells", n_wells)
+        print_text(axs[0], rf"Subvector size: {max_wells}", (0.02, 0.95), ('top', 'left'))
+    fig.supylabel("Prod. Rate (kg/s)" if len(production_types) == 1 else "Production Rate (kg/s)")
+    # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
+    # fig.suptitle(experiment_name)
+    # axs[0].legend(loc="lower right")
+    if save:
+        plt.savefig(f"{PLOT_DIR}/{experiment_name}_prod.png", dpi=300, bbox_inches="tight")
+
+    plt.show()
+
+def plot_perturbation_difference(experiment_name: str,
+                    production_types: list[str] | None = ['oil', 'gas-lift', 'water', 'gas'],
+                    iterations: int = 50,
+                    save: bool = False):
+    """
+    Prints the production of a set of production sequences. Production is specified in production_types.
+    """
+    experiment_dir = Path(f"{DATA_DIR}/{experiment_name}")
+    info = extract_settings(experiment_dir)
+    config_file = info["config_file"]
+    info.update(INIT_INFO[config_file])
+
+    runs = [r for r in experiment_dir.iterdir() if r.is_dir()]
+
+    n_wells = info["n_wells"]
+
+    figsize = (13.33, 3.5) if len(production_types) == 1 else (13.33, 2.5 * len(production_types) + 2.5)
+    fig, axs = plt.subplots(len(production_types), 1, figsize=figsize, sharex=True, constrained_layout=True, squeeze=False)
+    axs = axs.ravel()
+    
+    oils, gls, waters, gases = [], [], [], []
+    for run_idx, run in enumerate(runs):
+        path = Path(f"{run}/iteration_{iterations}/iteration_{iterations}.csv")
+        if not path.exists():
+            print(f"No valid data found for Run {run_idx} (file missing). Skipping.")
+            continue
+   
+        df = pd.read_csv(path)
+        n_sims = iterations
+    
+        # Number of wells with check
+        if n_wells != len(df.groupby('ID')):
+            raise ValueError(f"Number of wells in data ({len(df.groupby('ID'))}) does not match expected ({n_wells})")
+        
+        oil, gasl, water, gas = extract_production_history(
+            data=df,
+            n_sims=n_sims,
+            init_production=(info["oil"], info["gaslift"], info["water"], info.get("gas", 0.0)),
+            only_optimizing=False,
+        )
+        
+        # Drop every third element starting from index 3
+        oil = [oil[i] for i in range(1, len(oil)) if i % 3 != 0]
+        gasl = [gasl[i] for i in range(1, len(gasl)) if i % 3 != 0]
+        water = [water[i] for i in range(1, len(water)) if i % 3 != 0]
+        gas = [gas[i] for i in range(1, len(gas)) if i % 3 != 0]
+
+        oil_diff = [0]+[abs((oil[i+1] - oil[i]) / oil[i] * 100) if oil[i] != 0 else 0 for i in range(0,len(oil)-1,2)]
+        water_diff = [0]+[abs((water[i+1] - water[i]) / water[i] * 100) if water[i] != 0 else 0 for i in range(0,len(water)-1,2)]
+        
+        oils.append(oil_diff); waters.append(water_diff)
+
+        for i, prod_type in enumerate(production_types):
+            if prod_type == 'oil':
+                axs[i].plot(oil_diff, label=f"Production Sequence" if run_idx==0 else "", color='lightcoral', alpha=0.8) # Oil production
+            elif prod_type == 'water':
+                axs[i].plot(water_diff, label=f"Production Sequence" if run_idx==0 else "", color='cornflowerblue', alpha=0.8) # Water production
+
+    axes = (-0.5, 8)
+    if "oil" in production_types:
+        # axs[production_types.index("oil")].set_ylim(bottom=57.5, top=70.5) # These needs to be set manually, water = 20
+        # axs[production_types.index("oil")].set_ylim(bottom=40, top=65) # These needs to be set manually, water = 15
+        axs[production_types.index("oil")].set_ylim(bottom=axes[0], top=axes[1]) # These needs to be set manually
+        mean_oil = np.mean(np.array(oils), axis=0)
+        axs[production_types.index("oil")].plot(mean_oil, color='black', linewidth=1, alpha=0.8, label="Average Perc. Difference", linestyle='--') # Average oil production
+
+
+    if "water" in production_types:
+        # axs[production_types.index("water")].set_ylim(top=22) # These needs to be set manually, water = 20
+        axs[production_types.index("water")].set_ylim(bottom=axes[0], top=axes[1]) # These needs to be set manually, water = 15
+        mean_water = np.mean(np.array(waters), axis=0)
+        axs[production_types.index("water")].plot(mean_water, color='black', linewidth=1, alpha=0.8, label="Average Perc. Difference", linestyle='--') # Average water production
+    # =============
+
+    axs[len(production_types)-1].set_xlabel('Perturbation Pairs')
+    axs[len(production_types)-1].set_xlim(left=-1, right=iterations + 1)
+            
+
+    # =========================
+
+    for ax in axs:
+        ax.legend(loc="upper left")
+        ax.grid(True)
+        ax.yaxis.set_major_formatter(PercentFormatter(xmax=100, decimals=0))
+
+    fig.supylabel("Prod. Rate (kg/s)" if len(production_types) == 1 else "Perc. Difference in Production")
+    # fig.suptitle(fr"Prodcution under no noise : $\sigma = 0$")
+    # fig.suptitle(experiment_name)
+    # axs[0].legend(loc="lower right")
+    if save:
+        plt.savefig(f"{PLOT_DIR}/{experiment_name}_prod.png", dpi=300, bbox_inches="tight")
+
+    plt.show()
+
 
 if __name__ == "__main__":
     # plot_spsa_experiment(experiment_name="rand_init_positions", only_optimizing_iterations=False) #Used for anlaysing
@@ -2094,6 +2476,8 @@ if __name__ == "__main__":
     # main_exp = "experiments nsol noise"
     # main_exp = "experiments nsol relaxed (debug)/32wells"
     main_exp = "experiments nsol oilandgas"
+    # main_exp = "experiments nsol randstart"
+    # main_exp = "experiments nsol optchoke"
 
     opt_12wells = ["rho3_perturb1", "rho5_perturb2", "rho3_perturb3", "rho5_perturb4", "rho3_perturb6"]
     opt_40wells = ["rho1_perturb1", "rho1_perturb2", "rho0.5_perturb4", "rho0.5_perturb5", "rho0.5_perturb8", "rho0.5_perturb10"]
@@ -2104,15 +2488,17 @@ if __name__ == "__main__":
 
     # for exp in experiments:
         # plot_spsa_experiment(experiment_name=f"{main_exp}/{exp.name}", only_optimizing_iterations=True, save=False)
-        # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil"], highlight=None, only_optimizing_iterations=True, text = "stepsize", save=True)
+        # plot_production(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil", "water"], highlight=None, only_optimizing_iterations=True, text = "stepsize", save=False)
         # plot_decision_vector(experiment_name=f"{main_exp}/{exp.name}", save=False, iteration=None)
         # plot_decision_vector_series(experiment_name=f"{main_exp}/{exp.name}", save_each=False, start=None, stop=None)
-        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[0,1,2,3,4,5], only_optimizing_iterations=True, runs=[1,2,3,4,5,6], type="scatter", save=False)
-        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[7,8,9,10], runs=None, only_optimizing_iterations=True, type="line", save=False)
+        # plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[0,1,2,3], only_optimizing_iterations=True, runs=[i for i in range(20)], type="scatter", save=False)
+        # for i in [8,10,11,18,25]:
+        #     plot_decision_vector_history(experiment_name=f"{main_exp}/{exp.name}", wells_to_plot=[i], runs=None, only_optimizing_iterations=True, type="line", save=False)
         # plot_step_size(experiment_name=f"{main_exp}/{exp.name}", n_runs=None, iteration=None, save=False)
         # plot_cumulative_production(experiment_name=f"{main_exp}/{exp.name}", iteration=50, highlight=None, only_optimizing_iterations=False, save=False)
+        # plot_only_perturbations(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil", "water"], highlight=None, save=True)
+        # plot_perturbation_difference(experiment_name=f"{main_exp}/{exp.name}", production_types=["oil", "water"], save=True)
     
-
     # Average production across experiments in a main folder
     plot_average_production(experiments=experiments, only_optimizing_iterations=True, production_types=["oil", "gas"], save=False)
 
