@@ -561,7 +561,7 @@ class SPSA:
 
 
 if __name__ == "__main__":
-    n_runs = 75
+    n_runs = 50
     n_sim = 50
 
     subvectors = {24: [[[12, 15, 21, 8], [23, 16, 0, 20], [4, 6, 1, 11], [3, 10, 22, 17], [18, 7, 5, 14], [9, 2, 19, 13]],
@@ -582,11 +582,11 @@ if __name__ == "__main__":
     }
     
     experiments = [
-    {"config": f"nsol_32wells_choke50",
-    "save": f"experiments nsol oilandgas/subvector_{i}",
+    {"config": f"nsol_32wells_optchoke",
+    "save": f"experiments nsol opt_oilandgas",
     "description": (
         "Experiment with change in objective function\n"
-        "Obj func: 0.6 gas + 0.4 oil"
+        "Obj func: 0.8 gas + 0.15 oil"
         "Augmented Lagrangian SPSA\n"
         f"Default mixed production well system with size 32\n"
 
@@ -599,10 +599,9 @@ if __name__ == "__main__":
     "hyperparam_overrides": {
         "rho": 0.5,
     },
-    "subvector": subvectors[32][i],
-    "subvector_sequence": subvector_sequences[32][i],
+    "subvector": subvectors[32][1],
+    "subvector_sequence": subvector_sequences[32][1],
     }
-    for i in [0,1]
     ]
 
     # ----------- Main script -----------

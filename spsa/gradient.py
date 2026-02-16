@@ -67,7 +67,7 @@ class SPSAGradient:
         """
         Compute the value of the original objective function.
         """
-        return 0.2 * y["oil"] + 0.8 * y["gas"]
+        return 0.15 * y["oil"] + 0.85 * y["gas"]
 
     
     def _compute_penalty(self, violations):
